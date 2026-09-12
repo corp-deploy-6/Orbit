@@ -1,0 +1,197 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #1e1e1e;
+  color: #e6e6e6;
+}
+
+#app {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+#nav-bar {
+  width: 64px;
+  flex-shrink: 0;
+  background: #171717;
+  border-right: 1px solid #2a2a2a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 0;
+  gap: 8px;
+}
+
+.nav-item {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 8px;
+  color: #9a9a9a;
+  font-size: 10px;
+}
+
+.nav-item .nav-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+#tile-panel {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  color: #6a6a6a;
+}
+
+.tile-panel-inner {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  padding: 12px;
+  gap: 12px;
+}
+
+.tile-toolbar {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.add-tile-btn {
+  background: #2a2a2a;
+  color: #e6e6e6;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.add-tile-btn:hover:not(:disabled) {
+  background: #333;
+}
+
+.add-tile-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tile-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  grid-auto-rows: minmax(160px, 1fr);
+  gap: 10px;
+  overflow: auto;
+  align-content: start;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #333;
+  border-radius: 8px;
+  background: #232323;
+  overflow: hidden;
+}
+
+.tile.active {
+  border-color: #5c9eff;
+}
+
+.tile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: #2a2a2a;
+  border-bottom: 1px solid #333;
+  padding: 6px 8px;
+  flex-shrink: 0;
+}
+
+.tile-label {
+  font-size: 13px;
+  color: #e6e6e6;
+  outline: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+
+.tile-label:focus {
+  background: #1e1e1e;
+  outline: 1px solid #5c9eff;
+}
+
+.tile-close {
+  background: transparent;
+  border: none;
+  color: #9a9a9a;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.tile-close:hover {
+  background: #3a3a3a;
+  color: #e6e6e6;
+}
+
+.tile-body {
+  flex: 1;
+  min-height: 0;
+  color: #5a5a5a;
+  font-size: 12px;
+}
+
+.tile-body-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.tile-body-terminal {
+  display: block;
+  overflow: hidden;
+  padding: 4px 6px;
+  background: #181818;
+}
+
+.tile-body-terminal .xterm,
+.tile-body-terminal .xterm-viewport,
+.tile-body-terminal .xterm-screen {
+  height: 100%;
+  width: 100%;
+}
+
+.spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #444;
+  border-top-color: #5c9eff;
+  border-radius: 50%;
+  animation: orbit-spin 0.7s linear infinite;
+}
+
+@keyframes orbit-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

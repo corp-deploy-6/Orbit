@@ -69,6 +69,16 @@ export function createTerminalSession({ id, cwd, theme }) {
 
     setTheme(nextTheme) {
       term.options.theme = nextTheme;
+      term.refresh(0, term.rows - 1);
+    },
+
+    forceRedraw() {
+      fitAddon.fit();
+      term.refresh(0, term.rows - 1);
+    },
+
+    focus() {
+      term.focus();
     },
 
     dispose() {

@@ -19,6 +19,12 @@ export function setTerminalTheme(theme) {
   for (const session of sessions.values()) session.setTheme(theme);
 }
 
+export function forceRedrawTerminals() {
+  for (const session of sessions.values()) session.forceRedraw();
+  const activeSession = sessions.get(activeId);
+  activeSession?.focus();
+}
+
 const terminalEls = new Map(); // id -> entry from createTerminalElement
 const sessions = new Map(); // id -> terminal session controller
 
@@ -149,6 +155,7 @@ async function addTerminal() {
   }
 
   record.status = 'running';
+  activeId = record.id;
   render();
 
   const entry = terminalEls.get(record.id);

@@ -1,12 +1,12 @@
-// Tile grid mechanics: in-memory tile records, add/close/rename, auto-fit grid,
-// and the folder-picker -> pty spawn lifecycle for each tile.
+// Terminal grid mechanics: in-memory terminal records, add/close/rename, auto-fit grid,
+// and the folder-picker -> pty spawn lifecycle for each terminal.
 
-import { createTileElement, updateTileHeader, renderBody } from './tile.js';
+import { createTerminalElement, updateTerminalHeader, renderBody } from './terminal.js';
 import { createTerminalSession } from './terminal-view.js';
 
-const MAX_TILES = 6;
+const MAX_TERMINALS = 6;
 
-let tiles = [];
+let terminals = [];
 let nextId = 1;
 let activeId = null;
 let gridEl = null;
@@ -18,7 +18,7 @@ export function setTerminalTheme(theme) {
   for (const session of sessions.values()) session.setTheme(theme);
 }
 
-const tileEls = new Map(); // id -> entry from createTileElement
+const terminalEls = new Map(); // id -> entry from createTerminalElement
 const sessions = new Map(); // id -> terminal session controller
 
 function basename(p) {
@@ -26,14 +26,14 @@ function basename(p) {
   return parts[parts.length - 1] || p;
 }
 
-function removeTile(id) {
-  tiles = tiles.filter((t) => t.id !== id);
+function removeTerminal(id) {
+  terminals = terminals.filter((t) => t.id !== id);
   if (activeId === id) activeId = null;
 
-  const entry = tileEls.get(id);
+  const entry = terminalEls.get(id);
   if (entry) {
     entry.el.remove();
-    tileEls.delete(id);
+    terminalEls.delete(id);
   }
 
   const session = sessions.get(id);
@@ -44,11 +44,11 @@ function removeTile(id) {
 }
 
 function render() {
-  // Drop DOM/session for any tile record no longer present.
-  for (const id of [...tileEls.keys()]) {
-    if (!tiles.find((t) => t.id === id)) {
-      tileEls.get(id).el.remove();
-      tileEls.delete(id);
+  // Drop DOM/session for any terminal record no longer present.
+  for (const id of [...terminalEls.keys()]) {
+    if (!terminals.find((t) => t.id === id)) {
+      terminalEls.get(id).el.remove();
+      terminalEls.delete(id);
       const session = sessions.get(id);
       if (session) {
         session.dispose();
@@ -59,14 +59,14 @@ function render() {
 
   const handlers = {
     onRename: (id, value) => {
-      const t = tiles.find((t) => t.id === id);
+      const t = terminals.find((t) => t.id === id);
       if (t) {
         t.label = value;
         t.labelCustomized = true;
       }
     },
     onClose: (id) => {
-      removeTile(id);
+      removeTerminal(id);
       render();
     },
     onFocus: (id) => {
@@ -75,35 +75,35 @@ function render() {
     },
   };
 
-  for (const tile of tiles) {
-    let entry = tileEls.get(tile.id);
+  for (const terminal of terminals) {
+    let entry = terminalEls.get(terminal.id);
     if (!entry) {
-      entry = createTileElement({ ...tile, active: tile.id === activeId }, handlers);
-      tileEls.set(tile.id, entry);
+      entry = createTerminalElement({ ...terminal, active: terminal.id === activeId }, handlers);
+      terminalEls.set(terminal.id, entry);
     } else {
-      updateTileHeader(entry, { ...tile, active: tile.id === activeId });
-      renderBody(entry, tile);
+      updateTerminalHeader(entry, { ...terminal, active: terminal.id === activeId });
+      renderBody(entry, terminal);
     }
     gridEl.appendChild(entry.el);
   }
 
-  addBtn.disabled = tiles.length >= MAX_TILES;
+  addBtn.disabled = terminals.length >= MAX_TERMINALS;
 }
 
-async function addTile() {
-  if (tiles.length >= MAX_TILES) return;
+async function addTerminal() {
+  if (terminals.length >= MAX_TERMINALS) return;
 
-  const record = { id: nextId++, label: `Tile ${nextId - 1}`, status: 'picking', cwd: null };
-  tiles.push(record);
+  const record = { id: nextId++, label: `Terminal ${nextId - 1}`, status: 'picking', cwd: null };
+  terminals.push(record);
   render();
 
   const path = await window.orbit.pickDirectory();
 
-  // Tile may have been closed while the dialog was open.
-  if (!tiles.includes(record)) return;
+  // Terminal may have been closed while the dialog was open.
+  if (!terminals.includes(record)) return;
 
   if (!path) {
-    removeTile(record.id);
+    removeTerminal(record.id);
     render();
     return;
   }
@@ -118,8 +118,8 @@ async function addTile() {
 
   const result = await session.ready;
 
-  // Tile may have been closed while the pty was spawning.
-  if (!tiles.includes(record)) {
+  // Terminal may have been closed while the pty was spawning.
+  if (!terminals.includes(record)) {
     session.dispose();
     sessions.delete(record.id);
     return;
@@ -129,9 +129,9 @@ async function addTile() {
     record.status = 'ended';
     session.dispose();
     sessions.delete(record.id);
-    const entry = tileEls.get(record.id);
+    const entry = terminalEls.get(record.id);
     if (entry) {
-      entry.body.classList.add('tile-body-center');
+      entry.body.classList.add('terminal-body-center');
       entry.body.textContent = `Failed to start: ${result?.error || 'unknown error'}`;
     }
     return;
@@ -140,38 +140,38 @@ async function addTile() {
   record.status = 'running';
   render();
 
-  const entry = tileEls.get(record.id);
-  session.attach(entry.body, {
+  const entry = terminalEls.get(record.id);
+  session.attach(entry.mount, {
     onExit: () => {
       record.status = 'ended';
     },
   });
 }
 
-export function renderTilePanel(container) {
+export function renderTerminalPanel(container) {
   container.innerHTML = '';
   for (const session of sessions.values()) session.dispose();
   sessions.clear();
-  tileEls.clear();
-  tiles = [];
+  terminalEls.clear();
+  terminals = [];
   nextId = 1;
   activeId = null;
 
   const panel = document.createElement('div');
-  panel.className = 'tile-panel-inner';
+  panel.className = 'terminal-panel-inner';
 
   const toolbar = document.createElement('div');
-  toolbar.className = 'tile-toolbar';
+  toolbar.className = 'terminal-toolbar';
 
   addBtn = document.createElement('button');
-  addBtn.className = 'add-tile-btn';
-  addBtn.textContent = '+ Add Tile';
-  addBtn.addEventListener('click', addTile);
+  addBtn.className = 'add-terminal-btn';
+  addBtn.textContent = '+ Add Terminal';
+  addBtn.addEventListener('click', addTerminal);
 
   toolbar.appendChild(addBtn);
 
   gridEl = document.createElement('div');
-  gridEl.className = 'tile-grid';
+  gridEl.className = 'terminal-grid';
 
   panel.appendChild(toolbar);
   panel.appendChild(gridEl);

@@ -1,4 +1,4 @@
-// Native folder picker used per-tile to choose the pty's working directory.
+// Native folder picker used per-terminal to choose the pty's working directory.
 
 import { ipcMain, dialog } from 'electron';
 import os from 'node:os';

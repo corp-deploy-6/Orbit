@@ -3,16 +3,16 @@ import { contextBridge, ipcRenderer } from 'electron';
 contextBridge.exposeInMainWorld('orbit', {
   pickDirectory: () => ipcRenderer.invoke('dialog:pickDirectory'),
 
-  createTile: (sessionId, cwd, cols, rows) =>
+  createTerminal: (sessionId, cwd, cols, rows) =>
     ipcRenderer.invoke('pty:create', { sessionId, cwd, cols, rows }),
 
-  writeToTile: (sessionId, data) => ipcRenderer.send('pty:write', { sessionId, data }),
+  writeToTerminal: (sessionId, data) => ipcRenderer.send('pty:write', { sessionId, data }),
 
-  resizeTile: (sessionId, cols, rows) => ipcRenderer.send('pty:resize', { sessionId, cols, rows }),
+  resizeTerminal: (sessionId, cols, rows) => ipcRenderer.send('pty:resize', { sessionId, cols, rows }),
 
-  killTile: (sessionId) => ipcRenderer.send('pty:kill', { sessionId }),
+  killTerminal: (sessionId) => ipcRenderer.send('pty:kill', { sessionId }),
 
-  onTileData: (sessionId, callback) => {
+  onTerminalData: (sessionId, callback) => {
     const listener = (event, payload) => {
       if (payload.sessionId === sessionId) callback(payload.chunk);
     };
@@ -20,7 +20,7 @@ contextBridge.exposeInMainWorld('orbit', {
     return () => ipcRenderer.removeListener('pty:data', listener);
   },
 
-  onTileExit: (sessionId, callback) => {
+  onTerminalExit: (sessionId, callback) => {
     const listener = (event, payload) => {
       if (payload.sessionId === sessionId) callback(payload);
     };

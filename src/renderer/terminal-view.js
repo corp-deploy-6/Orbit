@@ -16,13 +16,25 @@ export function createTerminalSession({ id, cwd, theme }) {
   const fitAddon = new FitAddon();
   term.loadAddon(fitAddon);
 
-  const ready = window.orbit.createTerminal(id, cwd, 80, 24);
+  let ptyCols = 80;
+  let ptyRows = 24;
+  const ready = window.orbit.createTerminal(id, cwd, ptyCols, ptyRows);
 
   let disposed = false;
   let inputDisposable = null;
   let dataUnsubscribe = null;
   let exitUnsubscribe = null;
   let resizeObserver = null;
+
+  // Refit xterm to its container and tell the pty only when the grid size
+  // actually changed — every pty resize makes the running program repaint.
+  function fitAndSyncPty() {
+    fitAddon.fit();
+    if (term.cols === ptyCols && term.rows === ptyRows) return;
+    ptyCols = term.cols;
+    ptyRows = term.rows;
+    window.orbit.resizeTerminal(id, ptyCols, ptyRows);
+  }
 
   function freeze(message) {
     inputDisposable?.dispose();
@@ -37,8 +49,7 @@ export function createTerminalSession({ id, cwd, theme }) {
       if (disposed) return;
 
       term.open(container);
-      fitAddon.fit();
-      window.orbit.resizeTerminal(id, term.cols, term.rows);
+      fitAndSyncPty();
 
       inputDisposable = term.onData((data) => {
         window.orbit.writeToTerminal(id, data);
@@ -56,8 +67,7 @@ export function createTerminalSession({ id, cwd, theme }) {
       resizeObserver = new ResizeObserver(() => {
         if (disposed) return;
         try {
-          fitAddon.fit();
-          window.orbit.resizeTerminal(id, term.cols, term.rows);
+          fitAndSyncPty();
         } catch {
           // container can be transiently zero-sized during layout churn
         }
@@ -69,6 +79,17 @@ export function createTerminalSession({ id, cwd, theme }) {
 
     setTheme(nextTheme) {
       term.options.theme = nextTheme;
+      term.refresh(0, term.rows - 1);
+    },
+
+    forceRedraw() {
+      if (disposed) return;
+      fitAndSyncPty();
+      term.refresh(0, term.rows - 1);
+    },
+
+    focus() {
+      term.focus();
     },
 
     dispose() {

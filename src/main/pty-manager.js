@@ -37,7 +37,7 @@ export function registerPtyHandlers() {
     let proc;
     try {
       proc = pty.spawn(resolveClaudeCommand(), [], {
-        name: 'xterm-color',
+        name: 'xterm-256color',
         cols: cols || 80,
         rows: rows || 24,
         cwd,
@@ -51,12 +51,15 @@ export function registerPtyHandlers() {
     const sender = event.sender;
 
     proc.onData((chunk) => {
-      if (!sender.isDestroyed()) {
+      if (sessions.get(sessionId) === proc && !sender.isDestroyed()) {
         sender.send('pty:data', { sessionId, chunk });
       }
     });
 
+    // A replaced or killed pty exits asynchronously; by then its sessionId may
+    // belong to a newer pty, which must not be dropped or reported as ended.
     proc.onExit(({ exitCode, signal }) => {
+      if (sessions.get(sessionId) !== proc) return;
       sessions.delete(sessionId);
       if (!sender.isDestroyed()) {
         sender.send('pty:exit', { sessionId, exitCode, signal });

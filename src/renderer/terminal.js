@@ -62,12 +62,13 @@ export function updateTerminalHeader(entry, terminal) {
   }
 }
 
-// Only pre-terminal states (picking/starting) rebuild the body. Once a
-// terminal has been mounted (status flipped to 'running'), this is a no-op
-// forever for that terminal — terminal-view.js owns the body's contents from
-// then on, including freezing it in place on 'ended'.
+// Only pre-terminal states (picking/starting/failed) rebuild the body, and only
+// when the status changed. Once a terminal has been mounted (status flipped to
+// 'running'), this is a no-op forever for that terminal — terminal-view.js owns
+// the body's contents from then on, including freezing it in place on 'ended'.
 export function renderBody(entry, terminal) {
-  if (entry.terminalMounted) return;
+  if (entry.terminalMounted || entry.renderedStatus === terminal.status) return;
+  entry.renderedStatus = terminal.status;
 
   entry.body.innerHTML = '';
   switch (terminal.status) {
@@ -89,6 +90,10 @@ export function renderBody(entry, terminal) {
       entry.terminalMounted = true;
       break;
     }
+    case 'failed':
+      entry.body.classList.add('terminal-body-center');
+      entry.body.textContent = `Failed to start: ${terminal.error}`;
+      break;
     default:
       entry.body.classList.add('terminal-body-center');
       entry.body.textContent = terminal.status;

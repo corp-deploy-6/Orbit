@@ -14,13 +14,19 @@ let gridEl = null;
 let addBtn = null;
 let terminalTheme = null;
 
+const terminalEls = new Map(); // id -> entry from createTerminalElement
+const sessions = new Map(); // id -> terminal session controller
+
 export function setTerminalTheme(theme) {
   terminalTheme = theme;
   for (const session of sessions.values()) session.setTheme(theme);
 }
 
-const terminalEls = new Map(); // id -> entry from createTerminalElement
-const sessions = new Map(); // id -> terminal session controller
+export function forceRedrawTerminals() {
+  for (const session of sessions.values()) session.forceRedraw();
+  const activeSession = sessions.get(activeId);
+  activeSession?.focus();
+}
 
 function basename(p) {
   const parts = p.split(/[\\/]/).filter(Boolean);
@@ -44,42 +50,33 @@ function removeTerminal(id) {
   }
 }
 
-function render() {
-  // Drop DOM/session for any terminal record no longer present.
-  for (const id of [...terminalEls.keys()]) {
-    if (!terminals.find((t) => t.id === id)) {
-      terminalEls.get(id).el.remove();
-      terminalEls.delete(id);
-      const session = sessions.get(id);
-      if (session) {
-        session.dispose();
-        sessions.delete(id);
-      }
+// Re-pointing the file tree resets its expanded folders, so only do it when
+// the active terminal actually changes (not on every click into the same one).
+function setActive(id) {
+  if (activeId === id) return;
+  activeId = id;
+  render();
+  setActiveCwd(terminals.find((t) => t.id === id)?.cwd ?? null);
+}
+
+const handlers = {
+  onRename: (id, value) => {
+    const t = terminals.find((t) => t.id === id);
+    if (t) {
+      t.label = value;
+      t.labelCustomized = true;
     }
-  }
+  },
+  onClose: (id) => {
+    const wasActive = activeId === id;
+    removeTerminal(id);
+    render();
+    if (wasActive) setActiveCwd(null);
+  },
+  onFocus: setActive,
+};
 
-  const handlers = {
-    onRename: (id, value) => {
-      const t = terminals.find((t) => t.id === id);
-      if (t) {
-        t.label = value;
-        t.labelCustomized = true;
-      }
-    },
-    onClose: (id) => {
-      const wasActive = activeId === id;
-      removeTerminal(id);
-      render();
-      if (wasActive) setActiveCwd(null);
-    },
-    onFocus: (id) => {
-      activeId = id;
-      render();
-      const t = terminals.find((t) => t.id === id);
-      setActiveCwd(t?.cwd ?? null);
-    },
-  };
-
+function render() {
   for (const terminal of terminals) {
     let entry = terminalEls.get(terminal.id);
     if (!entry) {
@@ -103,7 +100,8 @@ function render() {
 async function addTerminal() {
   if (terminals.length >= MAX_TERMINALS) return;
 
-  const record = { id: nextId++, label: `Terminal ${nextId - 1}`, status: 'picking', cwd: null };
+  const id = nextId++;
+  const record = { id, label: `Terminal ${id}`, status: 'picking', cwd: null };
   terminals.push(record);
   render();
 
@@ -137,19 +135,17 @@ async function addTerminal() {
   }
 
   if (!result?.ok) {
-    record.status = 'ended';
+    record.status = 'failed';
+    record.error = result?.error || 'unknown error';
     session.dispose();
     sessions.delete(record.id);
-    const entry = terminalEls.get(record.id);
-    if (entry) {
-      entry.body.classList.add('terminal-body-center');
-      entry.body.textContent = `Failed to start: ${result?.error || 'unknown error'}`;
-    }
+    render();
     return;
   }
 
   record.status = 'running';
   render();
+  setActive(record.id);
 
   const entry = terminalEls.get(record.id);
   session.attach(entry.mount, {

@@ -25,8 +25,13 @@ function load() {
   return cache;
 }
 
+// Write-then-rename so a crash mid-write can't leave a truncated file behind
+// (which load() would silently replace with defaults).
 function save() {
-  fs.writeFileSync(settingsPath(), JSON.stringify(cache, null, 2), 'utf-8');
+  const target = settingsPath();
+  const tmp = `${target}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(cache, null, 2), 'utf-8');
+  fs.renameSync(tmp, target);
 }
 
 export function getSettings() {

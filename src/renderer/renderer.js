@@ -1,6 +1,6 @@
 import './styles.css';
 import { renderNavBar } from './nav-bar.js';
-import { renderTerminalPanel, setTerminalTheme } from './terminal-panel.js';
+import { renderTerminalPanel, setTerminalTheme, forceRedrawTerminals } from './terminal-panel.js';
 import { renderSettingsPanel } from './settings-panel.js';
 import { THEMES, applyTheme } from './themes/index.js';
 
@@ -20,10 +20,10 @@ async function main() {
 
   async function onSelectTheme(id) {
     currentThemeId = id;
-    await window.orbit.setSetting('theme', id);
     applyTheme(THEMES[id]);
     setTerminalTheme(THEMES[id].terminal);
     renderSettingsPanel(settingsPanelEl, { currentThemeId, onSelectTheme });
+    await window.orbit.setSetting('theme', id);
   }
 
   function showView(view) {
@@ -32,6 +32,8 @@ async function main() {
     renderNavBar(navBarEl, { onNavigate: showView, active: view });
     if (view === 'settings') {
       renderSettingsPanel(settingsPanelEl, { currentThemeId, onSelectTheme });
+    } else if (view === 'terminals') {
+      forceRedrawTerminals();
     }
   }
 

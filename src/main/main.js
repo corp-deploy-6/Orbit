@@ -4,7 +4,7 @@ import started from 'electron-squirrel-startup';
 import { registerPtyHandlers, killAllSessions } from './pty-manager.js';
 import { registerDialogHandlers } from './dialog-manager.js';
 import { registerSettingsHandlers } from './settings-store.js';
-import { registerFsTreeHandlers } from './fs-tree-manager.js';
+import { registerFsTreeHandlers, unwatchAllDirs } from './fs-tree-manager.js';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -19,6 +19,22 @@ const createWindow = () => {
       preload: path.join(__dirname, 'preload.js'),
     },
   });
+  const { webContents } = mainWindow;
+
+  // fs watchers only serve the loaded page; drop them on reload (e.g. a Vite
+  // full reload in dev) or renderer crash so they don't pile up. Ptys are left
+  // alone on purpose: a reload shouldn't kill a claude session mid-task.
+  webContents.on('did-start-navigation', ({ isMainFrame, isSameDocument }) => {
+    if (isMainFrame && !isSameDocument) unwatchAllDirs();
+  });
+  webContents.on('render-process-gone', unwatchAllDirs);
+
+  // The app never opens pages; block popups and navigation away from the app
+  // (e.g. a file dropped onto the window would replace the whole UI).
+  webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  webContents.on('will-navigate', (event) => {
+    if (event.url !== webContents.getURL()) event.preventDefault();
+  });
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
@@ -27,7 +43,7 @@ const createWindow = () => {
   }
 
   if (process.env.ORBIT_DEVTOOLS === '1') {
-    mainWindow.webContents.openDevTools();
+    webContents.openDevTools();
   }
 };
 
@@ -48,6 +64,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   killAllSessions();
+  unwatchAllDirs();
   if (process.platform !== 'darwin') {
     app.quit();
   }

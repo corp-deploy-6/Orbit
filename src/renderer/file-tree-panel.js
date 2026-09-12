@@ -6,6 +6,9 @@ let currentCwd = null;
 const expanded = new Set(); // path -> expanded
 const childrenCache = new Map(); // path -> entries
 const invalidPaths = new Set(); // path -> marked invalid (root or subdir)
+// Bumped on every setActiveCwd so async work can tell it's stale, even if the
+// tree switched away and back to the same folder while it was pending.
+let treeEpoch = 0;
 
 function isWithinTree(path) {
   if (!currentCwd) return false;
@@ -40,9 +43,9 @@ async function toggleExpand(path) {
     return;
   }
 
-  const cwd = currentCwd;
+  const epoch = treeEpoch;
   const result = await window.orbit.readDir(path);
-  if (currentCwd !== cwd) return; // tree switched folders while reading
+  if (epoch !== treeEpoch) return;
   if (!result?.ok) {
     invalidPaths.add(path);
     renderTree();
@@ -54,7 +57,7 @@ async function toggleExpand(path) {
   renderTree();
 
   const watchResult = await window.orbit.watchDir(path);
-  if (currentCwd !== cwd) return;
+  if (epoch !== treeEpoch) return;
   if (!watchResult?.ok && expanded.has(path)) {
     invalidPaths.add(path);
     renderTree();
@@ -169,6 +172,7 @@ function handleDirInvalid(path) {
 export function setActiveCwd(cwd) {
   window.orbit.unwatchAllDirs();
   clearState();
+  const epoch = ++treeEpoch;
 
   if (!cwd) {
     currentCwd = null;
@@ -181,7 +185,7 @@ export function setActiveCwd(cwd) {
 
   (async () => {
     const result = await window.orbit.readDir(cwd);
-    if (currentCwd !== cwd) return; // switched again before this resolved
+    if (epoch !== treeEpoch) return; // switched again before this resolved
     if (!result?.ok) {
       invalidPaths.add(cwd);
       renderTree();
@@ -191,7 +195,7 @@ export function setActiveCwd(cwd) {
     renderTree();
 
     const watchResult = await window.orbit.watchDir(cwd);
-    if (currentCwd !== cwd) return; // switched again before this resolved
+    if (epoch !== treeEpoch) return; // switched again before this resolved
     if (!watchResult?.ok) {
       invalidPaths.add(cwd);
       renderTree();

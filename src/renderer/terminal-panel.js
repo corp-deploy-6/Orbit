@@ -80,11 +80,16 @@ function render() {
     if (!entry) {
       entry = createTerminalElement({ ...terminal, active: terminal.id === activeId }, handlers);
       terminalEls.set(terminal.id, entry);
+      // Only insert on first mount. Terminals are only ever appended (never
+      // reordered), so re-appending an already-placed node on every render
+      // (e.g. on the mousedown->onFocus render triggered by clicking into a
+      // terminal to type) would detach and reattach it — appendChild always
+      // does remove-then-insert, which drops xterm's just-set input focus.
+      gridEl.appendChild(entry.el);
     } else {
       updateTerminalHeader(entry, { ...terminal, active: terminal.id === activeId });
       renderBody(entry, terminal);
     }
-    gridEl.appendChild(entry.el);
   }
 
   addBtn.disabled = terminals.length >= MAX_TERMINALS;

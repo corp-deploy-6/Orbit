@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, Menu } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 import { registerPtyHandlers, killAllSessions } from './pty-manager.js';
@@ -31,6 +31,7 @@ const createWindow = () => {
 };
 
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(null);
   registerPtyHandlers();
   registerDialogHandlers();
   registerSettingsHandlers();

@@ -1,7 +1,7 @@
 // Settings view: lists available themes as radio rows. Selecting a theme
 // calls back to the caller, which persists + applies it.
 
-import { THEMES } from './themes/index.js';
+import { THEMES, SELECTABLE_THEME_IDS } from './themes/index.js';
 
 // Tokens shown as swatch segments, in order, for a quick palette preview.
 const SWATCH_TOKENS = [
@@ -41,7 +41,7 @@ export function renderSettingsPanel(container, { currentThemeId, onSelectTheme }
   const list = document.createElement('div');
   list.className = 'theme-list';
 
-  for (const theme of Object.values(THEMES)) {
+  for (const theme of SELECTABLE_THEME_IDS.map((id) => THEMES[id])) {
     const row = document.createElement('label');
     row.className = 'theme-row';
     row.classList.toggle('selected', theme.id === currentThemeId);

@@ -1,3 +1,5 @@
+const fs = require('node:fs');
+const path = require('node:path');
 const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 
@@ -5,6 +7,20 @@ module.exports = {
   packagerConfig: {
     asar: {
       unpack: '**/node_modules/node-pty/**',
+    },
+  },
+  hooks: {
+    // plugin-vite only packages the Vite build output, and node-pty is kept
+    // external (see vite.main.config.mjs), so copy its runtime files into the
+    // app for the target being packaged.
+    packageAfterCopy: async (_config, buildPath, _electronVersion, platform, arch) => {
+      const src = path.join(__dirname, 'node_modules', 'node-pty');
+      const dest = path.join(buildPath, 'node_modules', 'node-pty');
+      for (const entry of ['package.json', 'LICENSE', 'lib', 'build', `prebuilds/${platform}-${arch}`]) {
+        const from = path.join(src, entry);
+        if (!fs.existsSync(from)) continue;
+        fs.cpSync(from, path.join(dest, entry), { recursive: true, filter: (f) => !f.endsWith('.pdb') });
+      }
     },
   },
   rebuildConfig: {

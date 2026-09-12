@@ -1,6 +1,7 @@
 import { orbitDefault } from './orbit-default.js';
+import { lunar } from './lunar.js';
 
-export const THEMES = { 'orbit-default': orbitDefault };
+export const THEMES = { 'orbit-default': orbitDefault, lunar };
 
 export function applyTheme(theme) {
   for (const [k, v] of Object.entries(theme.tokens)) {

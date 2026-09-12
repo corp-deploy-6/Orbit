@@ -15,6 +15,11 @@ let addBtn = null;
 const tileEls = new Map(); // id -> entry from createTileElement
 const sessions = new Map(); // id -> terminal session controller
 
+function basename(p) {
+  const parts = p.split(/[\\/]/).filter(Boolean);
+  return parts[parts.length - 1] || p;
+}
+
 function removeTile(id) {
   tiles = tiles.filter((t) => t.id !== id);
   if (activeId === id) activeId = null;
@@ -49,7 +54,10 @@ function render() {
   const handlers = {
     onRename: (id, value) => {
       const t = tiles.find((t) => t.id === id);
-      if (t) t.label = value;
+      if (t) {
+        t.label = value;
+        t.labelCustomized = true;
+      }
     },
     onClose: (id) => {
       removeTile(id);
@@ -95,6 +103,7 @@ async function addTile() {
   }
 
   record.cwd = path;
+  if (!record.labelCustomized) record.label = basename(path);
   record.status = 'starting';
   render();
 

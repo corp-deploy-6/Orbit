@@ -6,4 +6,4 @@ When a tile's working directory is picked via the folder dialog, default the til
 label to that folder's name (e.g. `basename(cwd)`) instead of a generic default.
 User can still rename manually afterward — this only changes the initial label.
 
-Status: not started.
+Status: Done.

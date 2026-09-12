@@ -20,10 +20,10 @@ async function main() {
 
   async function onSelectTheme(id) {
     currentThemeId = id;
-    await window.orbit.setSetting('theme', id);
     applyTheme(THEMES[id]);
     setTerminalTheme(THEMES[id].terminal);
     renderSettingsPanel(settingsPanelEl, { currentThemeId, onSelectTheme });
+    await window.orbit.setSetting('theme', id);
   }
 
   function showView(view) {

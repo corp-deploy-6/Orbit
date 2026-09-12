@@ -28,7 +28,11 @@ function resolveClaudeCommand() {
 
 export function registerPtyHandlers() {
   ipcMain.handle('pty:create', (event, { sessionId, cwd, cols, rows }) => {
-    if (sessions.has(sessionId)) return { ok: true };
+    const stale = sessions.get(sessionId);
+    if (stale) {
+      stale.kill();
+      sessions.delete(sessionId);
+    }
 
     let proc;
     try {

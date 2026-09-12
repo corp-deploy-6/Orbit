@@ -3,6 +3,30 @@
 
 import { THEMES } from './themes/index.js';
 
+// Tokens shown as swatch segments, in order, for a quick palette preview.
+const SWATCH_TOKENS = [
+  '--bg-base',
+  '--panel-surface',
+  '--accent',
+  '--accent-secondary',
+  '--text-primary',
+];
+
+function renderSwatch(theme) {
+  const swatch = document.createElement('div');
+  swatch.className = 'theme-swatch';
+  const tokens = theme.tokens || {};
+  for (const token of SWATCH_TOKENS) {
+    const color = tokens[token];
+    if (!color) continue;
+    const segment = document.createElement('span');
+    segment.className = 'theme-swatch-segment';
+    segment.style.background = color;
+    swatch.appendChild(segment);
+  }
+  return swatch;
+}
+
 export function renderSettingsPanel(container, { currentThemeId, onSelectTheme }) {
   container.innerHTML = '';
 
@@ -34,6 +58,7 @@ export function renderSettingsPanel(container, { currentThemeId, onSelectTheme }
 
     row.appendChild(radio);
     row.appendChild(name);
+    row.appendChild(renderSwatch(theme));
     list.appendChild(row);
   }
 

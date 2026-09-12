@@ -284,3 +284,21 @@ html, body {
 .theme-row input[type='radio'] {
   accent-color: var(--accent);
 }
+
+.theme-row span {
+  flex: 1;
+}
+
+.theme-swatch {
+  display: flex;
+  flex-shrink: 0;
+  width: 64px;
+  height: 16px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.theme-swatch-segment {
+  flex: 1;
+}

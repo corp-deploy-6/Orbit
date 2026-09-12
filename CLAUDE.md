@@ -28,3 +28,11 @@ Use `gh issue comment <n>` / `gh issue close <n>` (or edit via `gh issue edit`).
 ## Conventions
 
 (fill in as they emerge — file structure, naming, stack choices)
+
+### Branching
+
+- `main` is always deployable.
+- One branch per feature/fix, branched off latest `main`: `feature/<short-name>`, `fix/<short-name>`.
+- Merge via PR, then delete the branch. Don't reuse an old branch for new, unrelated work.
+- Sync `main` into the feature branch before opening the PR if `main` has moved.
+- Commits follow Conventional Commits (feat/fix/docs/chore/refactor).

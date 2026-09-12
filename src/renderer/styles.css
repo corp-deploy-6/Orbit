@@ -76,7 +76,7 @@ html, body {
   line-height: 1;
 }
 
-#tile-panel {
+#terminal-panel {
   flex: 1;
   display: flex;
   min-width: 0;
@@ -90,12 +90,12 @@ html, body {
   color: var(--text-muted);
 }
 
-#tile-panel[hidden],
+#terminal-panel[hidden],
 #settings-panel[hidden] {
   display: none;
 }
 
-.tile-panel-inner {
+.terminal-panel-inner {
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -104,12 +104,12 @@ html, body {
   gap: 12px;
 }
 
-.tile-toolbar {
+.terminal-toolbar {
   display: flex;
   flex-shrink: 0;
 }
 
-.add-tile-btn {
+.add-terminal-btn {
   background: var(--panel-header);
   color: var(--text-primary);
   border: 1px solid var(--border-strong);
@@ -119,16 +119,16 @@ html, body {
   cursor: pointer;
 }
 
-.add-tile-btn:hover:not(:disabled) {
+.add-terminal-btn:hover:not(:disabled) {
   background: var(--bg-raised);
 }
 
-.add-tile-btn:disabled {
+.add-terminal-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-.tile-grid {
+.terminal-grid {
   flex: 1;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -138,7 +138,7 @@ html, body {
   align-content: start;
 }
 
-.tile {
+.terminal {
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border-subtle);
@@ -147,12 +147,12 @@ html, body {
   overflow: hidden;
 }
 
-.tile.active {
+.terminal.active {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent-dim), 0 0 12px 0 var(--accent-dim);
 }
 
-.tile-header {
+.terminal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -163,7 +163,7 @@ html, body {
   flex-shrink: 0;
 }
 
-.tile-label {
+.terminal-label {
   font-size: 13px;
   color: var(--text-primary);
   outline: none;
@@ -174,12 +174,12 @@ html, body {
   border-radius: 4px;
 }
 
-.tile-label:focus {
+.terminal-label:focus {
   background: var(--bg-base);
   outline: 1px solid var(--focus-ring);
 }
 
-.tile-close {
+.terminal-close {
   background: transparent;
   border: none;
   color: var(--text-secondary);
@@ -191,35 +191,35 @@ html, body {
   flex-shrink: 0;
 }
 
-.tile-close:hover {
+.terminal-close:hover {
   background: var(--border-strong);
   color: var(--text-primary);
 }
 
-.tile-body {
+.terminal-body {
   flex: 1;
   min-height: 0;
   color: var(--text-muted);
   font-size: 12px;
 }
 
-.tile-body-center {
+.terminal-body-center {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
 }
 
-.tile-body-terminal {
+.terminal-body-active {
   display: block;
   overflow: hidden;
   padding: 4px 6px;
   background: var(--bg-sunken);
 }
 
-.tile-body-terminal .xterm,
-.tile-body-terminal .xterm-viewport,
-.tile-body-terminal .xterm-screen {
+.terminal-body-active .xterm,
+.terminal-body-active .xterm-viewport,
+.terminal-body-active .xterm-screen {
   height: 100%;
   width: 100%;
 }

@@ -1,21 +1,21 @@
-// Renders a single tile's shell: header (label + close) + a body that
-// branches on tile.status. Once a tile reaches 'running' its body becomes
+// Renders a single terminal's shell: header (label + close) + a body that
+// branches on terminal.status. Once a terminal reaches 'running' its body becomes
 // owned by terminal-view.js (the live xterm DOM) and is never rebuilt again
-// here, even if the tile later ends — terminal-view freezes it in place.
+// here, even if the terminal later ends — terminal-view freezes it in place.
 
-export function createTileElement(tile, { onRename, onClose, onFocus } = {}) {
+export function createTerminalElement(terminal, { onRename, onClose, onFocus } = {}) {
   const el = document.createElement('div');
-  el.className = 'tile';
-  el.dataset.tileId = tile.id;
+  el.className = 'terminal';
+  el.dataset.terminalId = terminal.id;
 
-  el.addEventListener('mousedown', () => onFocus?.(tile.id));
+  el.addEventListener('mousedown', () => onFocus?.(terminal.id));
 
   const header = document.createElement('div');
-  header.className = 'tile-header';
+  header.className = 'terminal-header';
 
   const label = document.createElement('span');
-  label.className = 'tile-label';
-  label.textContent = tile.label;
+  label.className = 'terminal-label';
+  label.textContent = terminal.label;
   label.contentEditable = 'true';
   label.spellcheck = false;
 
@@ -29,63 +29,63 @@ export function createTileElement(tile, { onRename, onClose, onFocus } = {}) {
   label.addEventListener('blur', () => {
     const value = label.textContent.trim() || 'Untitled';
     label.textContent = value;
-    onRename?.(tile.id, value);
+    onRename?.(terminal.id, value);
   });
 
   const closeBtn = document.createElement('button');
-  closeBtn.className = 'tile-close';
+  closeBtn.className = 'terminal-close';
   closeBtn.textContent = '×';
-  closeBtn.title = 'Close tile';
+  closeBtn.title = 'Close terminal';
   closeBtn.addEventListener('click', (e) => {
     e.stopPropagation();
-    onClose?.(tile.id);
+    onClose?.(terminal.id);
   });
 
   header.appendChild(label);
   header.appendChild(closeBtn);
 
   const body = document.createElement('div');
-  body.className = 'tile-body';
+  body.className = 'terminal-body';
 
   el.appendChild(header);
   el.appendChild(body);
 
   const entry = { el, body, label, terminalMounted: false };
-  renderBody(entry, tile);
+  renderBody(entry, terminal);
   return entry;
 }
 
-export function updateTileHeader(entry, tile) {
-  entry.el.classList.toggle('active', !!tile.active);
+export function updateTerminalHeader(entry, terminal) {
+  entry.el.classList.toggle('active', !!terminal.active);
   if (document.activeElement !== entry.label) {
-    entry.label.textContent = tile.label;
+    entry.label.textContent = terminal.label;
   }
 }
 
 // Only pre-terminal states (picking/starting) rebuild the body. Once a
 // terminal has been mounted (status flipped to 'running'), this is a no-op
-// forever for that tile — terminal-view.js owns the body's contents from
+// forever for that terminal — terminal-view.js owns the body's contents from
 // then on, including freezing it in place on 'ended'.
-export function renderBody(entry, tile) {
+export function renderBody(entry, terminal) {
   if (entry.terminalMounted) return;
 
   entry.body.innerHTML = '';
-  switch (tile.status) {
+  switch (terminal.status) {
     case 'picking':
-      entry.body.classList.add('tile-body-center');
+      entry.body.classList.add('terminal-body-center');
       entry.body.textContent = 'Choosing folder…';
       break;
     case 'starting':
-      entry.body.classList.add('tile-body-center');
+      entry.body.classList.add('terminal-body-center');
       entry.body.innerHTML = '<span class="spinner"></span><span>Starting session…</span>';
       break;
     case 'running':
-      entry.body.classList.remove('tile-body-center');
-      entry.body.classList.add('tile-body-terminal');
+      entry.body.classList.remove('terminal-body-center');
+      entry.body.classList.add('terminal-body-active');
       entry.terminalMounted = true;
       break;
     default:
-      entry.body.classList.add('tile-body-center');
-      entry.body.textContent = tile.status;
+      entry.body.classList.add('terminal-body-center');
+      entry.body.textContent = terminal.status;
   }
 }

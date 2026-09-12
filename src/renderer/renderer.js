@@ -1,6 +1,6 @@
 import './styles.css';
 import { renderNavBar } from './nav-bar.js';
-import { renderTilePanel, setTerminalTheme } from './tile-panel.js';
+import { renderTerminalPanel, setTerminalTheme } from './terminal-panel.js';
 import { renderSettingsPanel } from './settings-panel.js';
 import { THEMES, applyTheme } from './themes/index.js';
 
@@ -12,10 +12,10 @@ async function main() {
   applyTheme(THEMES[currentThemeId]);
 
   const navBarEl = document.getElementById('nav-bar');
-  const tilePanelEl = document.getElementById('tile-panel');
+  const terminalPanelEl = document.getElementById('terminal-panel');
   const settingsPanelEl = document.getElementById('settings-panel');
 
-  renderTilePanel(tilePanelEl);
+  renderTerminalPanel(terminalPanelEl);
   setTerminalTheme(THEMES[currentThemeId].terminal);
 
   async function onSelectTheme(id) {
@@ -27,7 +27,7 @@ async function main() {
   }
 
   function showView(view) {
-    tilePanelEl.hidden = view !== 'tiles';
+    terminalPanelEl.hidden = view !== 'terminals';
     settingsPanelEl.hidden = view !== 'settings';
     renderNavBar(navBarEl, { onNavigate: showView, active: view });
     if (view === 'settings') {
@@ -35,7 +35,7 @@ async function main() {
     }
   }
 
-  showView('tiles');
+  showView('terminals');
 }
 
 main();

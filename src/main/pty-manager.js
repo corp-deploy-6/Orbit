@@ -1,4 +1,4 @@
-// Owns live pty sessions. One node-pty process per tile, keyed by sessionId.
+// Owns live pty sessions. One node-pty process per terminal, keyed by sessionId.
 
 import { ipcMain } from 'electron';
 import pty from 'node-pty';

@@ -1,4 +1,4 @@
-// Per-tile xterm + pty session. Two-phase: create the pty first (so a tile
+// Per-terminal xterm + pty session. Two-phase: create the pty first (so a terminal
 // can show a "starting" spinner while spawn is in flight), then attach the
 // xterm instance into a DOM container once the caller flips to 'running'.
 
@@ -16,7 +16,7 @@ export function createTerminalSession({ id, cwd, theme }) {
   const fitAddon = new FitAddon();
   term.loadAddon(fitAddon);
 
-  const ready = window.orbit.createTile(id, cwd, 80, 24);
+  const ready = window.orbit.createTerminal(id, cwd, 80, 24);
 
   let disposed = false;
   let inputDisposable = null;
@@ -38,17 +38,17 @@ export function createTerminalSession({ id, cwd, theme }) {
 
       term.open(container);
       fitAddon.fit();
-      window.orbit.resizeTile(id, term.cols, term.rows);
+      window.orbit.resizeTerminal(id, term.cols, term.rows);
 
       inputDisposable = term.onData((data) => {
-        window.orbit.writeToTile(id, data);
+        window.orbit.writeToTerminal(id, data);
       });
 
-      dataUnsubscribe = window.orbit.onTileData(id, (chunk) => {
+      dataUnsubscribe = window.orbit.onTerminalData(id, (chunk) => {
         term.write(chunk);
       });
 
-      exitUnsubscribe = window.orbit.onTileExit(id, () => {
+      exitUnsubscribe = window.orbit.onTerminalExit(id, () => {
         freeze('session ended');
         onExit?.();
       });
@@ -57,7 +57,7 @@ export function createTerminalSession({ id, cwd, theme }) {
         if (disposed) return;
         try {
           fitAddon.fit();
-          window.orbit.resizeTile(id, term.cols, term.rows);
+          window.orbit.resizeTerminal(id, term.cols, term.rows);
         } catch {
           // container can be transiently zero-sized during layout churn
         }
@@ -79,7 +79,7 @@ export function createTerminalSession({ id, cwd, theme }) {
       exitUnsubscribe?.();
       inputDisposable?.dispose();
       term.dispose();
-      window.orbit.killTile(id);
+      window.orbit.killTerminal(id);
     },
   };
 }

@@ -230,6 +230,15 @@ html, body {
   width: 100%;
 }
 
+.terminal-mount .xterm-viewport {
+  scrollbar-width: none;
+}
+
+.terminal-mount .xterm-viewport::-webkit-scrollbar {
+  width: 0;
+  display: none;
+}
+
 .spinner {
   width: 12px;
   height: 12px;

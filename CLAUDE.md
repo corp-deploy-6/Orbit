@@ -36,3 +36,4 @@ Use `gh issue comment <n>` / `gh issue close <n>` (or edit via `gh issue edit`).
 - Merge via PR, then delete the branch. Don't reuse an old branch for new, unrelated work.
 - Sync `main` into the feature branch before opening the PR if `main` has moved.
 - Commits follow Conventional Commits (feat/fix/docs/chore/refactor).
+- Claude has standing authority to auto-merge PRs in this project (user-granted 2026-09-12).

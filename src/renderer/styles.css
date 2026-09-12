@@ -217,9 +217,14 @@ html, body {
   background: var(--bg-sunken);
 }
 
-.terminal-body-active .xterm,
-.terminal-body-active .xterm-viewport,
-.terminal-body-active .xterm-screen {
+.terminal-mount {
+  height: 100%;
+  width: 100%;
+}
+
+.terminal-mount .xterm,
+.terminal-mount .xterm-viewport,
+.terminal-mount .xterm-screen {
   height: 100%;
   width: 100%;
 }

@@ -79,11 +79,16 @@ export function renderBody(entry, terminal) {
       entry.body.classList.add('terminal-body-center');
       entry.body.innerHTML = '<span class="spinner"></span><span>Starting session…</span>';
       break;
-    case 'running':
+    case 'running': {
       entry.body.classList.remove('terminal-body-center');
       entry.body.classList.add('terminal-body-active');
+      const mount = document.createElement('div');
+      mount.className = 'terminal-mount';
+      entry.body.appendChild(mount);
+      entry.mount = mount;
       entry.terminalMounted = true;
       break;
+    }
     default:
       entry.body.classList.add('terminal-body-center');
       entry.body.textContent = terminal.status;

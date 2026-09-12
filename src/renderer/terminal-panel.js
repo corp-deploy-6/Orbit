@@ -141,7 +141,7 @@ async function addTerminal() {
   render();
 
   const entry = terminalEls.get(record.id);
-  session.attach(entry.body, {
+  session.attach(entry.mount, {
     onExit: () => {
       record.status = 'ended';
     },

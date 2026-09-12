@@ -1,10 +1,11 @@
 import { orbitDefault } from './orbit-default.js';
 import { lunar } from './lunar.js';
+import { neptuneSilver } from './neptune-silver.js';
 
-export const THEMES = { 'orbit-default': orbitDefault, lunar };
+export const THEMES = { 'orbit-default': orbitDefault, lunar, 'neptune-silver': neptuneSilver };
 
 // Only these themes are surfaced as selectable options in Settings.
-export const SELECTABLE_THEME_IDS = ['orbit-default', 'lunar'];
+export const SELECTABLE_THEME_IDS = ['orbit-default', 'lunar', 'neptune-silver'];
 
 export function applyTheme(theme) {
   for (const [k, v] of Object.entries(theme.tokens)) {

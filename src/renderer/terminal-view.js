@@ -6,15 +6,12 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 
-export function createTerminalSession({ id, cwd }) {
+export function createTerminalSession({ id, cwd, theme }) {
   const term = new Terminal({
     convertEol: true,
     fontSize: 13,
     cursorBlink: true,
-    theme: {
-      background: '#181818',
-      foreground: '#e6e6e6',
-    },
+    theme,
   });
   const fitAddon = new FitAddon();
   term.loadAddon(fitAddon);
@@ -68,6 +65,10 @@ export function createTerminalSession({ id, cwd }) {
       resizeObserver.observe(container);
 
       term.focus();
+    },
+
+    setTheme(nextTheme) {
+      term.options.theme = nextTheme;
     },
 
     dispose() {

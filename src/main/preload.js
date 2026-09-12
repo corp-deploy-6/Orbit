@@ -27,4 +27,8 @@ contextBridge.exposeInMainWorld('orbit', {
     ipcRenderer.on('pty:exit', listener);
     return () => ipcRenderer.removeListener('pty:exit', listener);
   },
+
+  getSettings: () => ipcRenderer.invoke('settings:get'),
+
+  setSetting: (key, value) => ipcRenderer.invoke('settings:set', { key, value }),
 });

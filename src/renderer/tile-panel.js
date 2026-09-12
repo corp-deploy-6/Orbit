@@ -11,6 +11,12 @@ let nextId = 1;
 let activeId = null;
 let gridEl = null;
 let addBtn = null;
+let terminalTheme = null;
+
+export function setTerminalTheme(theme) {
+  terminalTheme = theme;
+  for (const session of sessions.values()) session.setTheme(theme);
+}
 
 const tileEls = new Map(); // id -> entry from createTileElement
 const sessions = new Map(); // id -> terminal session controller
@@ -107,7 +113,7 @@ async function addTile() {
   record.status = 'starting';
   render();
 
-  const session = createTerminalSession({ id: record.id, cwd: path });
+  const session = createTerminalSession({ id: record.id, cwd: path, theme: terminalTheme });
   sessions.set(record.id, session);
 
   const result = await session.ready;

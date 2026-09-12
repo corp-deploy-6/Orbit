@@ -3,6 +3,7 @@
 
 import { createTerminalElement, updateTerminalHeader, renderBody } from './terminal.js';
 import { createTerminalSession } from './terminal-view.js';
+import { renderFileTreePanel, setActiveCwd } from './file-tree-panel.js';
 
 const MAX_TERMINALS = 6;
 
@@ -66,12 +67,16 @@ function render() {
       }
     },
     onClose: (id) => {
+      const wasActive = activeId === id;
       removeTerminal(id);
       render();
+      if (wasActive) setActiveCwd(null);
     },
     onFocus: (id) => {
       activeId = id;
       render();
+      const t = terminals.find((t) => t.id === id);
+      setActiveCwd(t?.cwd ?? null);
     },
   };
 
@@ -117,6 +122,7 @@ async function addTerminal() {
   if (!record.labelCustomized) record.label = basename(path);
   record.status = 'starting';
   render();
+  if (record.id === activeId) setActiveCwd(record.cwd);
 
   const session = createTerminalSession({ id: record.id, cwd: path, theme: terminalTheme });
   sessions.set(record.id, session);
@@ -180,7 +186,17 @@ export function renderTerminalPanel(container) {
 
   panel.appendChild(toolbar);
   panel.appendChild(gridEl);
-  container.appendChild(panel);
+
+  const row = document.createElement('div');
+  row.className = 'terminal-panel-row';
+
+  const treeContainer = document.createElement('div');
+
+  row.appendChild(panel);
+  row.appendChild(treeContainer);
+  container.appendChild(row);
+
+  renderFileTreePanel(treeContainer);
 
   render();
 }

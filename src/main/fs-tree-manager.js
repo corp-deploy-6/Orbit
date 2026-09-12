@@ -22,23 +22,27 @@ async function readDirEntries(dirPath) {
   return entries;
 }
 
-export function registerFsTreeHandlers() {
-  const watchers = new Map(); // dirPath -> fs.FSWatcher
-  const debounceTimers = new Map(); // dirPath -> Timeout
+const watchers = new Map(); // dirPath -> fs.FSWatcher
+const debounceTimers = new Map(); // dirPath -> Timeout
 
-  function stopWatching(dirPath) {
-    const watcher = watchers.get(dirPath);
-    if (watcher) {
-      watcher.close();
-      watchers.delete(dirPath);
-    }
-    const timer = debounceTimers.get(dirPath);
-    if (timer) {
-      clearTimeout(timer);
-      debounceTimers.delete(dirPath);
-    }
+function stopWatching(dirPath) {
+  const watcher = watchers.get(dirPath);
+  if (watcher) {
+    watcher.close();
+    watchers.delete(dirPath);
   }
+  const timer = debounceTimers.get(dirPath);
+  if (timer) {
+    clearTimeout(timer);
+    debounceTimers.delete(dirPath);
+  }
+}
 
+export function unwatchAllDirs() {
+  for (const dirPath of [...watchers.keys()]) stopWatching(dirPath);
+}
+
+export function registerFsTreeHandlers() {
   ipcMain.handle('fsTree:readDir', async (event, { dirPath }) => {
     try {
       const entries = await readDirEntries(dirPath);
@@ -85,7 +89,5 @@ export function registerFsTreeHandlers() {
     stopWatching(dirPath);
   });
 
-  ipcMain.on('fsTree:unwatchAll', () => {
-    for (const dirPath of [...watchers.keys()]) stopWatching(dirPath);
-  });
+  ipcMain.on('fsTree:unwatchAll', unwatchAllDirs);
 }

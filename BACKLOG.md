@@ -63,4 +63,4 @@ As a user, I want a Settings view (via the existing unwired Settings nav item) w
 
 Status: Done.
 
-Note: Lunar theme exists in the codebase (`src/renderer/themes/lunar.js`) but is intentionally hidden from Settings' theme list pending a future "second theme" story.
+Note: Lunar theme is now selectable in Settings alongside Orbit Default (re-enabled, see PR reversing #18).

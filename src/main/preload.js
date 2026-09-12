@@ -51,4 +51,8 @@ contextBridge.exposeInMainWorld('orbit', {
     ipcRenderer.on('fsTree:invalid', listener);
     return () => ipcRenderer.removeListener('fsTree:invalid', listener);
   },
+
+  getSessions: () => ipcRenderer.invoke('sessions:get'),
+
+  saveSessions: (sessions) => ipcRenderer.invoke('sessions:save', sessions),
 });

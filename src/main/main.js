@@ -5,6 +5,7 @@ import { registerPtyHandlers, killAllSessions } from './pty-manager.js';
 import { registerDialogHandlers } from './dialog-manager.js';
 import { registerSettingsHandlers } from './settings-store.js';
 import { registerFsTreeHandlers, unwatchAllDirs } from './fs-tree-manager.js';
+import { registerSessionHandlers } from './session-store.js';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -53,6 +54,7 @@ app.whenReady().then(() => {
   registerDialogHandlers();
   registerSettingsHandlers();
   registerFsTreeHandlers();
+  registerSessionHandlers();
   createWindow();
 
   app.on('activate', () => {

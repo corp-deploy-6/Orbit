@@ -13,6 +13,12 @@ let activeId = null;
 let gridEl = null;
 let addBtn = null;
 let terminalTheme = null;
+// True for the duration of the initial restoreSessions() pass. While true,
+// persistSessions() is a no-op — restoreSessions() manages sessions.json
+// itself during that pass, since terminals are only partly populated at any
+// point mid-restore and writing from `terminals` at that point would
+// truncate saved sessions that haven't been restored yet.
+let restoring = false;
 
 const terminalEls = new Map(); // id -> entry from createTerminalElement
 const sessions = new Map(); // id -> terminal session controller
@@ -31,6 +37,24 @@ export function forceRedrawTerminals() {
 function basename(p) {
   const parts = p.split(/[\\/]/).filter(Boolean);
   return parts[parts.length - 1] || p;
+}
+
+async function writeSessions(list) {
+  try {
+    await window.orbit.saveSessions(list);
+  } catch (err) {
+    console.error('Failed to save sessions', err);
+  }
+}
+
+// Persist cwd/label/order so terminals can be respawned on next launch.
+// Live process state and scrollback are not preserved.
+function persistSessions() {
+  if (restoring) return;
+  const toSave = terminals
+    .filter((t) => t.cwd && t.status !== 'ended' && t.status !== 'failed')
+    .map((t) => ({ cwd: t.cwd, label: t.label }));
+  writeSessions(toSave);
 }
 
 function removeTerminal(id) {
@@ -65,11 +89,13 @@ const handlers = {
     if (t) {
       t.label = value;
       t.labelCustomized = true;
+      persistSessions();
     }
   },
   onClose: (id) => {
     const wasActive = activeId === id;
     removeTerminal(id);
+    persistSessions();
     render();
     if (wasActive) setActiveCwd(null);
   },
@@ -97,6 +123,43 @@ function render() {
   addBtn.disabled = terminals.length >= MAX_TERMINALS;
 }
 
+async function spawnSession(record) {
+  const session = createTerminalSession({ id: record.id, cwd: record.cwd, theme: terminalTheme });
+  sessions.set(record.id, session);
+
+  const result = await session.ready;
+
+  // Terminal may have been closed while the pty was spawning.
+  if (!terminals.includes(record)) {
+    session.dispose();
+    sessions.delete(record.id);
+    return;
+  }
+
+  if (!result?.ok) {
+    record.status = 'failed';
+    record.error = result?.error || 'unknown error';
+    session.dispose();
+    sessions.delete(record.id);
+    render();
+    persistSessions();
+    return;
+  }
+
+  record.status = 'running';
+  render();
+  setActive(record.id);
+  persistSessions();
+
+  const entry = terminalEls.get(record.id);
+  session.attach(entry.mount, {
+    onExit: () => {
+      record.status = 'ended';
+      persistSessions();
+    },
+  });
+}
+
 async function addTerminal() {
   if (terminals.length >= MAX_TERMINALS) return;
 
@@ -122,37 +185,47 @@ async function addTerminal() {
   render();
   if (record.id === activeId) setActiveCwd(record.cwd);
 
-  const session = createTerminalSession({ id: record.id, cwd: path, theme: terminalTheme });
-  sessions.set(record.id, session);
+  await spawnSession(record);
+}
 
-  const result = await session.ready;
+async function restoreTerminal(saved) {
+  if (terminals.length >= MAX_TERMINALS) return null;
 
-  // Terminal may have been closed while the pty was spawning.
-  if (!terminals.includes(record)) {
-    session.dispose();
-    sessions.delete(record.id);
-    return;
-  }
-
-  if (!result?.ok) {
-    record.status = 'failed';
-    record.error = result?.error || 'unknown error';
-    session.dispose();
-    sessions.delete(record.id);
-    render();
-    return;
-  }
-
-  record.status = 'running';
+  const record = {
+    id: nextId++,
+    label: saved.label,
+    labelCustomized: true,
+    status: 'starting',
+    cwd: saved.cwd,
+  };
+  terminals.push(record);
   render();
-  setActive(record.id);
 
-  const entry = terminalEls.get(record.id);
-  session.attach(entry.mount, {
-    onExit: () => {
-      record.status = 'ended';
-    },
-  });
+  await spawnSession(record);
+  return record;
+}
+
+export async function restoreSessions() {
+  const saved = ((await window.orbit.getSessions()) || []).filter((entry) => entry?.cwd);
+  if (!saved.length) return;
+
+  // Write the full saved list to disk up front, then restore one at a time.
+  // persistSessions() is suppressed for the duration (see `restoring`), so an
+  // interruption partway through never truncates sessions that haven't been
+  // restored yet. Once restoring finishes, only prune entries that actually
+  // failed to spawn — cap-skipped entries are left on disk untouched so they
+  // aren't lost either.
+  restoring = true;
+  const pending = saved.map(({ cwd, label }) => ({ cwd, label }));
+  await writeSessions(pending);
+
+  for (let i = 0; i < saved.length; i++) {
+    const record = await restoreTerminal(saved[i]);
+    if (record && record.status === 'failed') pending[i] = null;
+  }
+
+  restoring = false;
+  await writeSessions(pending.filter(Boolean));
 }
 
 export function renderTerminalPanel(container) {

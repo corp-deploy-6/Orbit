@@ -142,14 +142,11 @@ html, body {
 .terminal {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
   background: var(--panel-surface);
   overflow: hidden;
 }
 
 .terminal.active {
-  border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent-dim), 0 0 12px 0 var(--accent-dim);
 }
 

@@ -4,6 +4,7 @@ import started from 'electron-squirrel-startup';
 import { registerPtyHandlers, killAllSessions } from './pty-manager.js';
 import { registerDialogHandlers } from './dialog-manager.js';
 import { registerSettingsHandlers } from './settings-store.js';
+import { registerFsTreeHandlers } from './fs-tree-manager.js';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -35,6 +36,7 @@ app.whenReady().then(() => {
   registerPtyHandlers();
   registerDialogHandlers();
   registerSettingsHandlers();
+  registerFsTreeHandlers();
   createWindow();
 
   app.on('activate', () => {

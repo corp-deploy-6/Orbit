@@ -31,4 +31,24 @@ contextBridge.exposeInMainWorld('orbit', {
   getSettings: () => ipcRenderer.invoke('settings:get'),
 
   setSetting: (key, value) => ipcRenderer.invoke('settings:set', { key, value }),
+
+  readDir: (dirPath) => ipcRenderer.invoke('fsTree:readDir', { dirPath }),
+
+  watchDir: (dirPath) => ipcRenderer.invoke('fsTree:watch', { dirPath }),
+
+  unwatchDir: (dirPath) => ipcRenderer.send('fsTree:unwatch', { dirPath }),
+
+  unwatchAllDirs: () => ipcRenderer.send('fsTree:unwatchAll'),
+
+  onDirChanged: (callback) => {
+    const listener = (event, payload) => callback(payload.dirPath);
+    ipcRenderer.on('fsTree:changed', listener);
+    return () => ipcRenderer.removeListener('fsTree:changed', listener);
+  },
+
+  onDirInvalid: (callback) => {
+    const listener = (event, payload) => callback(payload.dirPath);
+    ipcRenderer.on('fsTree:invalid', listener);
+    return () => ipcRenderer.removeListener('fsTree:invalid', listener);
+  },
 });

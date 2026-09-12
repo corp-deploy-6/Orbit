@@ -61,4 +61,6 @@ As a user, I want a Settings view (via the existing unwired Settings nav item) w
 - Switching to Settings and back to Terminals doesn't tear down or restart any running terminal sessions.
 - Theme is data-driven (token object), not hardcoded inline, so a second theme later doesn't require rewriting `styles.css`.
 
-Status: Not started.
+Status: Done.
+
+Note: Lunar theme exists in the codebase (`src/renderer/themes/lunar.js`) but is intentionally hidden from Settings' theme list pending a future "second theme" story.

@@ -90,6 +90,11 @@ html, body {
   color: var(--text-muted);
 }
 
+#tile-panel[hidden],
+#settings-panel[hidden] {
+  display: none;
+}
+
 .tile-panel-inner {
   display: flex;
   flex-direction: column;

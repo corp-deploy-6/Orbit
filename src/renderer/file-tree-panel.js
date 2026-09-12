@@ -40,17 +40,21 @@ async function toggleExpand(path) {
     return;
   }
 
+  const cwd = currentCwd;
   const result = await window.orbit.readDir(path);
+  if (currentCwd !== cwd) return; // tree switched folders while reading
   if (!result?.ok) {
     invalidPaths.add(path);
     renderTree();
     return;
   }
+  invalidPaths.delete(path);
   childrenCache.set(path, result.entries);
   expanded.add(path);
   renderTree();
 
   const watchResult = await window.orbit.watchDir(path);
+  if (currentCwd !== cwd) return;
   if (!watchResult?.ok && expanded.has(path)) {
     invalidPaths.add(path);
     renderTree();

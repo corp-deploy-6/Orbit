@@ -13,6 +13,10 @@ let activeId = null;
 let gridEl = null;
 let addBtn = null;
 let terminalTheme = null;
+// Saved sessions not yet turned into terminals: still queued mid-restore, or
+// skipped for the MAX_TERMINALS cap. Always persisted after the live terminals,
+// so a close/rename/add or a crash during restore never drops or reverts them.
+let unrestored = [];
 
 const terminalEls = new Map(); // id -> entry from createTerminalElement
 const sessions = new Map(); // id -> terminal session controller
@@ -31,6 +35,23 @@ export function forceRedrawTerminals() {
 function basename(p) {
   const parts = p.split(/[\\/]/).filter(Boolean);
   return parts[parts.length - 1] || p;
+}
+
+async function writeSessions(list) {
+  try {
+    await window.orbit.saveSessions(list);
+  } catch (err) {
+    console.error('Failed to save sessions', err);
+  }
+}
+
+// Persist cwd/label/order so terminals can be respawned on next launch.
+// Live process state and scrollback are not preserved.
+function persistSessions() {
+  const toSave = terminals
+    .filter((t) => t.cwd && t.status !== 'ended' && t.status !== 'failed')
+    .map((t) => ({ cwd: t.cwd, label: t.label }));
+  writeSessions([...toSave, ...unrestored]);
 }
 
 function removeTerminal(id) {
@@ -65,11 +86,13 @@ const handlers = {
     if (t) {
       t.label = value;
       t.labelCustomized = true;
+      persistSessions();
     }
   },
   onClose: (id) => {
     const wasActive = activeId === id;
     removeTerminal(id);
+    persistSessions();
     render();
     if (wasActive) setActiveCwd(null);
   },
@@ -97,6 +120,42 @@ function render() {
   addBtn.disabled = terminals.length >= MAX_TERMINALS;
 }
 
+async function spawnSession(record) {
+  const session = createTerminalSession({ id: record.id, cwd: record.cwd, theme: terminalTheme });
+  sessions.set(record.id, session);
+
+  const result = await session.ready;
+
+  // Terminal may have been closed while the pty was spawning.
+  if (!terminals.includes(record)) {
+    session.dispose();
+    sessions.delete(record.id);
+    return;
+  }
+
+  if (!result?.ok) {
+    record.status = 'failed';
+    record.error = result?.error || 'unknown error';
+    session.dispose();
+    sessions.delete(record.id);
+    render();
+    persistSessions();
+    return;
+  }
+
+  record.status = 'running';
+  render();
+  persistSessions();
+
+  const entry = terminalEls.get(record.id);
+  session.attach(entry.mount, {
+    onExit: () => {
+      record.status = 'ended';
+      persistSessions();
+    },
+  });
+}
+
 async function addTerminal() {
   if (terminals.length >= MAX_TERMINALS) return;
 
@@ -122,37 +181,40 @@ async function addTerminal() {
   render();
   if (record.id === activeId) setActiveCwd(record.cwd);
 
-  const session = createTerminalSession({ id: record.id, cwd: path, theme: terminalTheme });
-  sessions.set(record.id, session);
+  await spawnSession(record);
+  if (record.status === 'running') setActive(record.id);
+}
 
-  const result = await session.ready;
-
-  // Terminal may have been closed while the pty was spawning.
-  if (!terminals.includes(record)) {
-    session.dispose();
-    sessions.delete(record.id);
-    return;
-  }
-
-  if (!result?.ok) {
-    record.status = 'failed';
-    record.error = result?.error || 'unknown error';
-    session.dispose();
-    sessions.delete(record.id);
-    render();
-    return;
-  }
-
-  record.status = 'running';
+async function restoreTerminal(saved) {
+  const record = {
+    id: nextId++,
+    label: saved.label,
+    labelCustomized: true,
+    status: 'starting',
+    cwd: saved.cwd,
+  };
+  terminals.push(record);
   render();
-  setActive(record.id);
 
-  const entry = terminalEls.get(record.id);
-  session.attach(entry.mount, {
-    onExit: () => {
-      record.status = 'ended';
-    },
-  });
+  await spawnSession(record);
+}
+
+export async function restoreSessions() {
+  const saved = ((await window.orbit.getSessions()) || []).filter((entry) => entry?.cwd);
+  if (!saved.length) return;
+
+  unrestored = saved.map(({ cwd, label }) => ({ cwd, label }));
+
+  // One at a time. Each entry leaves `unrestored` only as it becomes a live
+  // terminal, so every write in between still covers the full set.
+  while (unrestored.length && terminals.length < MAX_TERMINALS) {
+    await restoreTerminal(unrestored.shift());
+  }
+
+  // Point the file tree once at the end instead of once per restored terminal.
+  const firstRunning = terminals.find((t) => t.status === 'running');
+  if (activeId === null && firstRunning) setActive(firstRunning.id);
+  persistSessions();
 }
 
 export function renderTerminalPanel(container) {
@@ -161,6 +223,7 @@ export function renderTerminalPanel(container) {
   sessions.clear();
   terminalEls.clear();
   terminals = [];
+  unrestored = [];
   nextId = 1;
   activeId = null;
 

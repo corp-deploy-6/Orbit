@@ -1,6 +1,6 @@
 import './styles.css';
 import { renderNavBar } from './nav-bar.js';
-import { renderTerminalPanel, setTerminalTheme, forceRedrawTerminals } from './terminal-panel.js';
+import { renderTerminalPanel, setTerminalTheme, forceRedrawTerminals, restoreSessions } from './terminal-panel.js';
 import { renderSettingsPanel } from './settings-panel.js';
 import { THEMES, applyTheme } from './themes/index.js';
 
@@ -17,6 +17,7 @@ async function main() {
 
   renderTerminalPanel(terminalPanelEl);
   setTerminalTheme(THEMES[currentThemeId].terminal);
+  restoreSessions();
 
   async function onSelectTheme(id) {
     currentThemeId = id;

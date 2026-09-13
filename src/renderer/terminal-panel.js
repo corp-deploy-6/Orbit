@@ -13,12 +13,10 @@ let activeId = null;
 let gridEl = null;
 let addBtn = null;
 let terminalTheme = null;
-// True for the duration of the initial restoreSessions() pass. While true,
-// persistSessions() is a no-op — restoreSessions() manages sessions.json
-// itself during that pass, since terminals are only partly populated at any
-// point mid-restore and writing from `terminals` at that point would
-// truncate saved sessions that haven't been restored yet.
-let restoring = false;
+// Saved sessions not yet turned into terminals: still queued mid-restore, or
+// skipped for the MAX_TERMINALS cap. Always persisted after the live terminals,
+// so a close/rename/add or a crash during restore never drops or reverts them.
+let unrestored = [];
 
 const terminalEls = new Map(); // id -> entry from createTerminalElement
 const sessions = new Map(); // id -> terminal session controller
@@ -50,11 +48,10 @@ async function writeSessions(list) {
 // Persist cwd/label/order so terminals can be respawned on next launch.
 // Live process state and scrollback are not preserved.
 function persistSessions() {
-  if (restoring) return;
   const toSave = terminals
     .filter((t) => t.cwd && t.status !== 'ended' && t.status !== 'failed')
     .map((t) => ({ cwd: t.cwd, label: t.label }));
-  writeSessions(toSave);
+  writeSessions([...toSave, ...unrestored]);
 }
 
 function removeTerminal(id) {
@@ -148,7 +145,6 @@ async function spawnSession(record) {
 
   record.status = 'running';
   render();
-  setActive(record.id);
   persistSessions();
 
   const entry = terminalEls.get(record.id);
@@ -186,11 +182,10 @@ async function addTerminal() {
   if (record.id === activeId) setActiveCwd(record.cwd);
 
   await spawnSession(record);
+  if (record.status === 'running') setActive(record.id);
 }
 
 async function restoreTerminal(saved) {
-  if (terminals.length >= MAX_TERMINALS) return null;
-
   const record = {
     id: nextId++,
     label: saved.label,
@@ -202,30 +197,24 @@ async function restoreTerminal(saved) {
   render();
 
   await spawnSession(record);
-  return record;
 }
 
 export async function restoreSessions() {
   const saved = ((await window.orbit.getSessions()) || []).filter((entry) => entry?.cwd);
   if (!saved.length) return;
 
-  // Write the full saved list to disk up front, then restore one at a time.
-  // persistSessions() is suppressed for the duration (see `restoring`), so an
-  // interruption partway through never truncates sessions that haven't been
-  // restored yet. Once restoring finishes, only prune entries that actually
-  // failed to spawn — cap-skipped entries are left on disk untouched so they
-  // aren't lost either.
-  restoring = true;
-  const pending = saved.map(({ cwd, label }) => ({ cwd, label }));
-  await writeSessions(pending);
+  unrestored = saved.map(({ cwd, label }) => ({ cwd, label }));
 
-  for (let i = 0; i < saved.length; i++) {
-    const record = await restoreTerminal(saved[i]);
-    if (record && record.status === 'failed') pending[i] = null;
+  // One at a time. Each entry leaves `unrestored` only as it becomes a live
+  // terminal, so every write in between still covers the full set.
+  while (unrestored.length && terminals.length < MAX_TERMINALS) {
+    await restoreTerminal(unrestored.shift());
   }
 
-  restoring = false;
-  await writeSessions(pending.filter(Boolean));
+  // Point the file tree once at the end instead of once per restored terminal.
+  const firstRunning = terminals.find((t) => t.status === 'running');
+  if (activeId === null && firstRunning) setActive(firstRunning.id);
+  persistSessions();
 }
 
 export function renderTerminalPanel(container) {
@@ -234,6 +223,7 @@ export function renderTerminalPanel(container) {
   sessions.clear();
   terminalEls.clear();
   terminals = [];
+  unrestored = [];
   nextId = 1;
   activeId = null;
 

@@ -38,12 +38,14 @@ Use `gh issue comment <n>` / `gh issue close <n>` (or edit via `gh issue edit`).
 - Commits follow Conventional Commits (feat/fix/docs/chore/refactor).
 - Claude has standing authority to auto-merge PRs in this project (user-granted 2026-09-12).
 
-## graphify
+## graft
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+This repo is indexed by `graft/` (a knowledge graph, self-hosted skill at `.claude/skills/graft/SKILL.md` — auto-discovered, no manual trigger needed). For any codebase task — understanding a flow, finding where code lives, tracing callers, scoping an edit — reach for graft before grepping or reading source files.
 
-Rules:
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+- `graft ask "<question>" --source` — locate + understand, the default. Returns ranked hits with inlined code, no follow-up file read needed.
+- `graft grep "<pattern>"` — exhaustive find, grouped by enclosing symbol. Use for every occurrence of a symbol/literal.
+- `graft skeleton <file>` — a file's API (signatures only) at a glance.
+- `graft callers <symbol>` — precomputed call edges. `--direction in` (default) before renaming/deleting; `--depth all` before a multi-file refactor.
+- `graft map` — orientation tour of an unfamiliar area (directory clusters, hubs, hotspots).
+- No direct symbol-to-symbol path command (graphify's old `path "<A>" "<B>"` has no equivalent) — closest workaround is `graft ask "relationship between A and B"`.
+- Every tool refreshes the graph itself before answering; no need to run `graft build` after editing.

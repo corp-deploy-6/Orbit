@@ -4,6 +4,7 @@
 import { createTerminalElement, updateTerminalHeader, renderBody } from './terminal.js';
 import { createTerminalSession } from './terminal-view.js';
 import { renderFileTreePanel, setActiveCwd } from './file-tree-panel.js';
+import { setActiveGraphCwd } from './graph-panel.js';
 
 const MAX_TERMINALS = 6;
 
@@ -77,7 +78,9 @@ function setActive(id) {
   if (activeId === id) return;
   activeId = id;
   render();
-  setActiveCwd(terminals.find((t) => t.id === id)?.cwd ?? null);
+  const cwd = terminals.find((t) => t.id === id)?.cwd ?? null;
+  setActiveCwd(cwd);
+  setActiveGraphCwd(cwd);
 }
 
 const handlers = {
@@ -94,7 +97,10 @@ const handlers = {
     removeTerminal(id);
     persistSessions();
     render();
-    if (wasActive) setActiveCwd(null);
+    if (wasActive) {
+      setActiveCwd(null);
+      setActiveGraphCwd(null);
+    }
   },
   onFocus: setActive,
 };
@@ -179,7 +185,10 @@ async function addTerminal() {
   if (!record.labelCustomized) record.label = basename(path);
   record.status = 'starting';
   render();
-  if (record.id === activeId) setActiveCwd(record.cwd);
+  if (record.id === activeId) {
+    setActiveCwd(record.cwd);
+    setActiveGraphCwd(record.cwd);
+  }
 
   await spawnSession(record);
   if (record.status === 'running') setActive(record.id);

@@ -1,7 +1,8 @@
-// Nav skeleton with click routing between the two views (Terminals/Settings).
+// Nav skeleton with click routing between views (Terminals/Graph/Settings).
 
 const NAV_ITEMS = [
   { id: 'terminals', icon: '🗂', label: 'Terminals' },
+  { id: 'graph', icon: '🕸', label: 'Graph' },
   { id: 'settings', icon: '⚙', label: 'Settings' },
 ];
 

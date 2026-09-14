@@ -55,4 +55,8 @@ contextBridge.exposeInMainWorld('orbit', {
   getSessions: () => ipcRenderer.invoke('sessions:get'),
 
   saveSessions: (sessions) => ipcRenderer.invoke('sessions:save', sessions),
+
+  readGraphData: (cwd) => ipcRenderer.invoke('graphData:read', { cwd }),
+
+  openSourceFile: (cwd, sourceFile) => ipcRenderer.invoke('graphData:openSource', { cwd, sourceFile }),
 });

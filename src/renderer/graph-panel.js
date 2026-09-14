@@ -4,7 +4,7 @@
 // once the Graph view is actually shown -- since graph.json can be large and
 // most cwd switches never visit this view.
 
-import { createGraphView } from './graph-view.js';
+import { createGraphView, communityColor } from './graph-view.js';
 
 let containerEl = null;
 let bodyEl = null;
@@ -30,15 +30,27 @@ function clearBody() {
   }
 }
 
-function renderMessage(text) {
+function renderMessage(text, variant) {
   clearBody();
   const msg = document.createElement('div');
   msg.className = 'graph-empty-state';
-  msg.textContent = text;
+  if (variant === 'error') msg.classList.add('graph-empty-state-error');
+
+  if (variant === 'loading') {
+    msg.classList.add('graph-empty-state-loading');
+    const spinner = document.createElement('span');
+    spinner.className = 'spinner';
+    const label = document.createElement('span');
+    label.textContent = text;
+    msg.appendChild(spinner);
+    msg.appendChild(label);
+  } else {
+    msg.textContent = text;
+  }
   bodyEl.appendChild(msg);
 }
 
-function renderGraph(nodes, links) {
+function renderGraph(nodes, links, warning) {
   clearBody();
 
   sidebarEl = document.createElement('div');
@@ -49,6 +61,13 @@ function renderGraph(nodes, links) {
   canvasEl = document.createElement('canvas');
   canvasEl.className = 'graph-canvas';
   canvasWrap.appendChild(canvasEl);
+
+  if (warning) {
+    const banner = document.createElement('div');
+    banner.className = 'graph-perf-warning';
+    banner.textContent = warning;
+    canvasWrap.appendChild(banner);
+  }
 
   bodyEl.appendChild(sidebarEl);
   bodyEl.appendChild(canvasWrap);
@@ -100,13 +119,20 @@ function renderSidebar() {
     checkbox.addEventListener('change', () => {
       if (checkbox.checked) activeCommunities.add(community.id);
       else activeCommunities.delete(community.id);
+      row.classList.toggle('graph-community-row-off', !checkbox.checked);
       view?.setCommunityFilter(activeCommunities);
     });
 
+    const swatch = document.createElement('span');
+    swatch.className = 'graph-community-swatch';
+    swatch.style.background = communityColor(community.id);
+
     const label = document.createElement('span');
+    label.className = 'graph-community-label';
     label.textContent = community.name;
 
     row.appendChild(checkbox);
+    row.appendChild(swatch);
     row.appendChild(label);
     list.appendChild(row);
   }
@@ -122,18 +148,17 @@ async function load(cwd) {
     if (result?.reason === 'not-found') {
       renderMessage('No graph built yet — run `graphify update .` or `/graphify .` to build one.');
     } else {
-      renderMessage(`Could not read the knowledge graph: ${result?.error || 'unknown error'}`);
+      renderMessage(`Could not read the knowledge graph: ${result?.error || 'unknown error'}`, 'error');
     }
     loadedForCwd = null;
     return;
   }
 
   loadedForCwd = cwd;
-  if (result.nodes.length > 1500) {
-    renderMessage(`Graph is large (${result.nodes.length} nodes) — layout may be slow.`);
-    // Still render it, just after the perf heads-up.
-  }
-  renderGraph(result.nodes, result.links);
+  const warning = result.nodes.length > 1500
+    ? `Graph is large (${result.nodes.length} nodes) — layout may be slow.`
+    : null;
+  renderGraph(result.nodes, result.links, warning);
 }
 
 function ensureLoaded() {
@@ -143,7 +168,7 @@ function ensureLoaded() {
     return;
   }
   if (loadedForCwd === currentCwd) return;
-  renderMessage('Loading graph…');
+  renderMessage('Loading graph…', 'loading');
   load(currentCwd);
 }
 

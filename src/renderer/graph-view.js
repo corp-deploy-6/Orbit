@@ -25,8 +25,13 @@ function communityColor(community) {
   return COMMUNITY_COLORS[idx];
 }
 
+// Exported so the sidebar legend (graph-panel.js) can swatch each community
+// with the exact color its nodes are drawn in on the canvas.
+export { communityColor };
+
 export function createGraphView(canvasEl, { onNodeClick } = {}) {
   const ctx = canvasEl.getContext('2d');
+  canvasEl.style.cursor = 'grab';
 
   let nodes = [];
   let links = [];
@@ -40,6 +45,8 @@ export function createGraphView(canvasEl, { onNodeClick } = {}) {
   let dragNode = null;
   let panState = null;
   let pointerMoved = false;
+  let hoveredNode = null;
+  let selectedNode = null;
 
   function visibleNodes() {
     if (!communityFilter) return nodes;
@@ -107,17 +114,35 @@ export function createGraphView(canvasEl, { onNodeClick } = {}) {
     ctx.globalAlpha = 1;
 
     const textColor = cssVar('--text-primary', '#f0e6d2');
+    const accent = cssVar('--accent-strong', '#f0b95c');
     ctx.font = `${11 / transform.k}px sans-serif`;
     for (const n of visibleNodes()) {
       if (n.x == null || n.y == null) continue;
+      const isHovered = n === hoveredNode;
+      const isSelected = n === selectedNode;
+      const r = (isHovered || isSelected ? NODE_RADIUS + 2 : NODE_RADIUS) / transform.k;
+
+      if (isHovered || isSelected) {
+        ctx.save();
+        ctx.shadowColor = accent;
+        ctx.shadowBlur = 10 / transform.k;
+      }
+
       ctx.beginPath();
-      ctx.arc(n.x, n.y, NODE_RADIUS / transform.k, 0, Math.PI * 2);
+      ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
       ctx.fillStyle = communityColor(n.community);
       ctx.fill();
 
-      if (transform.k > 1.2) {
-        ctx.fillStyle = textColor;
-        ctx.fillText(n.label || n.id, n.x + NODE_RADIUS / transform.k + 2, n.y + 3 / transform.k);
+      if (isHovered || isSelected) {
+        ctx.restore();
+        ctx.lineWidth = (isSelected ? 2 : 1.5) / transform.k;
+        ctx.strokeStyle = accent;
+        ctx.stroke();
+      }
+
+      if (transform.k > 1.2 || isHovered || isSelected) {
+        ctx.fillStyle = isHovered || isSelected ? accent : textColor;
+        ctx.fillText(n.label || n.id, n.x + r + 3 / transform.k, n.y + 3 / transform.k);
       }
     }
 
@@ -161,9 +186,18 @@ export function createGraphView(canvasEl, { onNodeClick } = {}) {
       dragNode.fy = world.y;
     } else if (panState) {
       pointerMoved = true;
+      canvasEl.style.cursor = 'grabbing';
       transform.x = panState.origX + (e.clientX - panState.startX);
       transform.y = panState.origY + (e.clientY - panState.startY);
       draw();
+    } else {
+      const world = toWorld(e.clientX, e.clientY);
+      const hit = nodeAt(world.x, world.y);
+      if (hit !== hoveredNode) {
+        hoveredNode = hit;
+        canvasEl.style.cursor = hit ? 'pointer' : 'grab';
+        draw();
+      }
     }
   }
 
@@ -172,10 +206,15 @@ export function createGraphView(canvasEl, { onNodeClick } = {}) {
       dragNode.fx = null;
       dragNode.fy = null;
       simulation?.alphaTarget(0);
-      if (!pointerMoved) onNodeClick?.(dragNode);
+      if (!pointerMoved) {
+        selectedNode = dragNode;
+        onNodeClick?.(dragNode);
+        draw();
+      }
       dragNode = null;
     } else if (panState) {
       panState = null;
+      canvasEl.style.cursor = hoveredNode ? 'pointer' : 'grab';
     }
     canvasEl.releasePointerCapture(e.pointerId);
   }
@@ -195,9 +234,18 @@ export function createGraphView(canvasEl, { onNodeClick } = {}) {
     draw();
   }
 
+  function onPointerLeave() {
+    if (hoveredNode && !dragNode) {
+      hoveredNode = null;
+      canvasEl.style.cursor = 'grab';
+      draw();
+    }
+  }
+
   canvasEl.addEventListener('pointerdown', onPointerDown);
   canvasEl.addEventListener('pointermove', onPointerMove);
   canvasEl.addEventListener('pointerup', onPointerUp);
+  canvasEl.addEventListener('pointerleave', onPointerLeave);
   canvasEl.addEventListener('wheel', onWheel, { passive: false });
 
   const resizeObserver = new ResizeObserver(() => resize());
@@ -209,6 +257,8 @@ export function createGraphView(canvasEl, { onNodeClick } = {}) {
       nodes = newNodes;
       links = newLinks;
       transform = { x: 0, y: 0, k: 1 };
+      hoveredNode = null;
+      selectedNode = null;
       startSimulation();
       draw();
     },
@@ -223,6 +273,7 @@ export function createGraphView(canvasEl, { onNodeClick } = {}) {
       canvasEl.removeEventListener('pointerdown', onPointerDown);
       canvasEl.removeEventListener('pointermove', onPointerMove);
       canvasEl.removeEventListener('pointerup', onPointerUp);
+      canvasEl.removeEventListener('pointerleave', onPointerLeave);
       canvasEl.removeEventListener('wheel', onWheel);
     },
   };

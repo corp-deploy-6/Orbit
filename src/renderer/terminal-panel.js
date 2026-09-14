@@ -148,6 +148,16 @@ function render() {
 }
 
 async function spawnSession(record) {
+  // A fresh pty is about to be created for this pane id. Drop any stale
+  // usage-tracker claim first, since the id is a renderer-local counter that
+  // resets on reload/restore and could otherwise be reused onto an old,
+  // unrelated transcript file.
+  try {
+    await window.orbit.resetUsage(record.id, record.cwd);
+  } catch {
+    // best-effort; usage badge just stays uncached
+  }
+
   const session = createTerminalSession({ id: record.id, cwd: record.cwd, theme: terminalTheme });
   sessions.set(record.id, session);
 

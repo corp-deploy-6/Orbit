@@ -262,6 +262,8 @@ html, body {
 }
 
 .terminal-label {
+  flex: 1;
+  min-width: 0;
   font-size: 13px;
   color: var(--text-primary);
   outline: none;
@@ -275,6 +277,13 @@ html, body {
 .terminal-label:focus {
   background: var(--bg-base);
   outline: 1px solid var(--focus-ring);
+}
+
+.terminal-usage {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .terminal-close {

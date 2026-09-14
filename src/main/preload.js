@@ -55,4 +55,6 @@ contextBridge.exposeInMainWorld('orbit', {
   getSessions: () => ipcRenderer.invoke('sessions:get'),
 
   saveSessions: (sessions) => ipcRenderer.invoke('sessions:save', sessions),
+
+  getUsage: (sessionId, cwd) => ipcRenderer.invoke('usage:get', { sessionId, cwd }),
 });

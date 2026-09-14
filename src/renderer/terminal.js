@@ -32,6 +32,10 @@ export function createTerminalElement(terminal, { onRename, onClose, onFocus } =
     onRename?.(terminal.id, value);
   });
 
+  const usageBadge = document.createElement('span');
+  usageBadge.className = 'terminal-usage';
+  usageBadge.hidden = true;
+
   const closeBtn = document.createElement('button');
   closeBtn.className = 'terminal-close';
   closeBtn.textContent = '×';
@@ -42,6 +46,7 @@ export function createTerminalElement(terminal, { onRename, onClose, onFocus } =
   });
 
   header.appendChild(label);
+  header.appendChild(usageBadge);
   header.appendChild(closeBtn);
 
   const body = document.createElement('div');
@@ -50,9 +55,38 @@ export function createTerminalElement(terminal, { onRename, onClose, onFocus } =
   el.appendChild(header);
   el.appendChild(body);
 
-  const entry = { el, body, label, terminalMounted: false };
+  const entry = { el, body, label, usageBadge, terminalMounted: false };
   renderBody(entry, terminal);
   return entry;
+}
+
+// Formats a raw token count as e.g. "1.2k" / "842". Anything under a
+// thousand is shown as-is since "k" rounding would lose all precision.
+function formatTokens(n) {
+  if (n < 1000) return String(n);
+  const k = n / 1000;
+  return `${k >= 10 ? Math.round(k) : k.toFixed(1)}k`;
+}
+
+function formatCost(usd) {
+  if (usd < 0.01) return '<$0.01';
+  return `$${usd.toFixed(2)}`;
+}
+
+// Shows/hides the per-pane usage indicator. `usage` is whatever
+// window.orbit.getUsage() resolved to: null when no matching transcript
+// could be found/parsed for this pane (indicator stays hidden), or
+// { contextTokens, contextWindow, costUSD? } otherwise.
+export function setUsageBadge(entry, usage) {
+  if (!usage) {
+    entry.usageBadge.hidden = true;
+    return;
+  }
+  const { contextTokens, contextWindow, costUSD } = usage;
+  let text = `~${formatTokens(contextTokens)} / ${formatTokens(contextWindow)} ctx`;
+  if (typeof costUSD === 'number') text += ` · ${formatCost(costUSD)}`;
+  entry.usageBadge.textContent = text;
+  entry.usageBadge.hidden = false;
 }
 
 export function updateTerminalHeader(entry, terminal) {

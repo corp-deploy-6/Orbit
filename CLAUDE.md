@@ -37,3 +37,15 @@ Use `gh issue comment <n>` / `gh issue close <n>` (or edit via `gh issue edit`).
 - Sync `main` into the feature branch before opening the PR if `main` has moved.
 - Commits follow Conventional Commits (feat/fix/docs/chore/refactor).
 - Claude has standing authority to auto-merge PRs in this project (user-granted 2026-09-12).
+
+## graft
+
+This repo is indexed by `graft/` (a knowledge graph, self-hosted skill at `.claude/skills/graft/SKILL.md` — auto-discovered, no manual trigger needed). For any codebase task — understanding a flow, finding where code lives, tracing callers, scoping an edit — reach for graft before grepping or reading source files.
+
+- `graft ask "<question>" --source` — locate + understand, the default. Returns ranked hits with inlined code, no follow-up file read needed.
+- `graft grep "<pattern>"` — exhaustive find, grouped by enclosing symbol. Use for every occurrence of a symbol/literal.
+- `graft skeleton <file>` — a file's API (signatures only) at a glance.
+- `graft callers <symbol>` — precomputed call edges. `--direction in` (default) before renaming/deleting; `--depth all` before a multi-file refactor.
+- `graft map` — orientation tour of an unfamiliar area (directory clusters, hubs, hotspots).
+- No direct symbol-to-symbol path command (graphify's old `path "<A>" "<B>"` has no equivalent) — closest workaround is `graft ask "relationship between A and B"`.
+- Every tool refreshes the graph itself before answering; no need to run `graft build` after editing.

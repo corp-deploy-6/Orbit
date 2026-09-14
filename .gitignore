@@ -90,3 +90,6 @@ typings/
 
 # Electron-Forge
 out/
+
+# graphify (regenerable knowledge graph)
+graphify-out/

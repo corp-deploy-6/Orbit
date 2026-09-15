@@ -32,6 +32,10 @@ export function createTerminalElement(terminal, { onRename, onClose, onFocus } =
     onRename?.(terminal.id, value);
   });
 
+  const usageBadge = document.createElement('span');
+  usageBadge.className = 'terminal-usage';
+  usageBadge.hidden = true;
+
   const closeBtn = document.createElement('button');
   closeBtn.className = 'terminal-close';
   closeBtn.textContent = '×';
@@ -42,6 +46,7 @@ export function createTerminalElement(terminal, { onRename, onClose, onFocus } =
   });
 
   header.appendChild(label);
+  header.appendChild(usageBadge);
   header.appendChild(closeBtn);
 
   const body = document.createElement('div');
@@ -50,9 +55,27 @@ export function createTerminalElement(terminal, { onRename, onClose, onFocus } =
   el.appendChild(header);
   el.appendChild(body);
 
-  const entry = { el, body, label, terminalMounted: false };
+  const entry = { el, body, label, usageBadge, terminalMounted: false };
   renderBody(entry, terminal);
   return entry;
+}
+
+function formatCost(usd) {
+  if (usd < 0.01) return '<$0.01';
+  return `$${usd.toFixed(2)}`;
+}
+
+// Shows/hides the per-pane usage indicator. `usage` is whatever
+// window.orbit.getUsage() resolved to: null when no matching transcript
+// could be found/parsed for this pane (indicator stays hidden), or
+// { costUSD } otherwise.
+export function setUsageBadge(entry, usage) {
+  if (!usage || typeof usage.costUSD !== 'number') {
+    entry.usageBadge.hidden = true;
+    return;
+  }
+  entry.usageBadge.textContent = formatCost(usage.costUSD);
+  entry.usageBadge.hidden = false;
 }
 
 export function updateTerminalHeader(entry, terminal) {

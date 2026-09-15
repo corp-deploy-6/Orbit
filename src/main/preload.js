@@ -63,4 +63,10 @@ contextBridge.exposeInMainWorld('orbit', {
   confirmOpenLink: (url) => ipcRenderer.invoke('shell:confirmOpenLink', url),
 
   getGraftGraph: () => ipcRenderer.invoke('graftGraph:get'),
+
+  onToolActivity: (callback) => {
+    const listener = (event, payload) => callback(payload.paths);
+    ipcRenderer.on('toolActivity:file', listener);
+    return () => ipcRenderer.removeListener('toolActivity:file', listener);
+  },
 });

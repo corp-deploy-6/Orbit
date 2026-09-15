@@ -9,6 +9,7 @@ import { registerSessionHandlers } from './session-store.js';
 import { registerUsageHandlers } from './usage-tracker.js';
 import { registerShellHandlers } from './shell-manager.js';
 import { registerGraftGraphHandlers } from './graft-graph-manager.js';
+import { stopAllToolWatches } from './tool-activity-manager.js';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -35,11 +36,13 @@ const createWindow = () => {
     if (isMainFrame && !isSameDocument) {
       unwatchAllDirs();
       killAllSessions();
+      stopAllToolWatches();
     }
   });
   webContents.on('render-process-gone', () => {
     unwatchAllDirs();
     killAllSessions();
+    stopAllToolWatches();
   });
 
   // The app never opens pages; block popups and navigation away from the app
@@ -82,6 +85,7 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   killAllSessions();
   unwatchAllDirs();
+  stopAllToolWatches();
   if (process.platform !== 'darwin') {
     app.quit();
   }

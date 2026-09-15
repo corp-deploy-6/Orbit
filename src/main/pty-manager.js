@@ -7,6 +7,17 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { startToolWatch, stopToolWatch, stopAllToolWatches } from './tool-activity-manager.js';
+
+// Tool-activity tracking is a cosmetic add-on (graph node pulses); a failure
+// there must never take down a spawn or a kill.
+function safely(fn) {
+  try {
+    fn();
+  } catch {
+    // degrade to "no pulses"
+  }
+}
 
 const sessions = new Map(); // sessionId -> IPty
 
@@ -68,6 +79,7 @@ export function registerPtyHandlers() {
     if (stale) {
       stale.kill();
       sessions.delete(sessionId);
+      safely(() => stopToolWatch(sessionId));
     }
 
     if (!cwd || !fs.existsSync(cwd)) {
@@ -99,6 +111,8 @@ export function registerPtyHandlers() {
     sessions.set(sessionId, proc);
     const sender = event.sender;
 
+    safely(() => startToolWatch({ sessionId, cwd, claudeSessionId: plan.claudeSessionId, sender }));
+
     proc.onData((chunk) => {
       if (sessions.get(sessionId) === proc && !sender.isDestroyed()) {
         sender.send('pty:data', { sessionId, chunk });
@@ -110,6 +124,7 @@ export function registerPtyHandlers() {
     proc.onExit(({ exitCode, signal }) => {
       if (sessions.get(sessionId) !== proc) return;
       sessions.delete(sessionId);
+      safely(() => stopToolWatch(sessionId));
       if (!sender.isDestroyed()) {
         sender.send('pty:exit', { sessionId, exitCode, signal });
       }
@@ -139,6 +154,7 @@ export function registerPtyHandlers() {
     if (proc) {
       proc.kill();
       sessions.delete(sessionId);
+      safely(() => stopToolWatch(sessionId));
     }
   });
 }
@@ -148,4 +164,5 @@ export function killAllSessions() {
     proc.kill();
   }
   sessions.clear();
+  safely(() => stopAllToolWatches());
 }

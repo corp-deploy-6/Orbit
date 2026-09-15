@@ -27,6 +27,7 @@ const tileEls = new Map(); // id -> entry from createTileElement
 const sessions = new Map(); // id -> terminal session controller
 const graphViews = new Map(); // id -> graph view controller
 let usageIntervalId = null;
+let toolActivityUnsub = null;
 
 function graphTileCount() {
   return tiles.filter((t) => t.type === 'graph').length;
@@ -365,6 +366,13 @@ export function renderConsolePanel(container) {
 
   if (usageIntervalId) clearInterval(usageIntervalId);
   usageIntervalId = setInterval(refreshAllUsage, USAGE_POLL_MS);
+
+  // One subscription for the whole panel: a file touched by any pane pulses in
+  // every open graph tile (pulses aren't scoped per-pane in v1).
+  toolActivityUnsub?.();
+  toolActivityUnsub = window.orbit.onToolActivity((paths) => {
+    for (const view of graphViews.values()) view.pulse(paths);
+  });
 
   const panel = document.createElement('div');
   panel.className = 'console-panel-inner';

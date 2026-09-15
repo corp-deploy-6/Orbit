@@ -2,6 +2,7 @@
 
 const NAV_ITEMS = [
   { id: 'terminals', icon: '🗂', label: 'Terminals' },
+  { id: 'graph', icon: '🕸', label: 'Graph' },
   { id: 'settings', icon: '⚙', label: 'Settings' },
 ];
 

@@ -8,6 +8,7 @@ import { registerFsTreeHandlers, unwatchAllDirs } from './fs-tree-manager.js';
 import { registerSessionHandlers } from './session-store.js';
 import { registerUsageHandlers } from './usage-tracker.js';
 import { registerShellHandlers } from './shell-manager.js';
+import { registerGraftGraphHandlers } from './graft-graph-manager.js';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -68,6 +69,7 @@ app.whenReady().then(() => {
   registerSessionHandlers();
   registerUsageHandlers();
   registerShellHandlers();
+  registerGraftGraphHandlers();
   createWindow();
 
   app.on('activate', () => {

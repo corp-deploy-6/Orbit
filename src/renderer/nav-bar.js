@@ -1,12 +1,11 @@
-// Nav skeleton with click routing between views (Terminals/Settings).
+// Nav skeleton with click routing between views (Console/Settings).
 
 const NAV_ITEMS = [
-  { id: 'terminals', icon: '🗂', label: 'Terminals' },
-  { id: 'graph', icon: '🕸', label: 'Graph' },
+  { id: 'console', icon: '🖥', label: 'Console' },
   { id: 'settings', icon: '⚙', label: 'Settings' },
 ];
 
-export function renderNavBar(container, { onNavigate, active = 'terminals' } = {}) {
+export function renderNavBar(container, { onNavigate, active = 'console' } = {}) {
   container.innerHTML = '';
 
   for (const item of NAV_ITEMS) {

@@ -1,8 +1,15 @@
 import './styles.css';
 import { renderNavBar } from './nav-bar.js';
-import { renderTerminalPanel, setTerminalTheme, forceRedrawTerminals, restoreSessions } from './terminal-panel.js';
+import {
+  renderConsolePanel,
+  setTerminalTheme,
+  forceRedrawConsole,
+  restoreSessions,
+  refreshGraphTheme,
+  pauseGraphTiles,
+  resumeGraphTiles,
+} from './console-panel.js';
 import { renderSettingsPanel } from './settings-panel.js';
-import { renderGraphPanel, refreshGraphTheme, pauseGraph, resumeGraph } from './graph-panel.js';
 import { THEMES, applyTheme } from './themes/index.js';
 
 async function main() {
@@ -13,15 +20,12 @@ async function main() {
   applyTheme(THEMES[currentThemeId]);
 
   const navBarEl = document.getElementById('nav-bar');
-  const terminalPanelEl = document.getElementById('terminal-panel');
+  const consolePanelEl = document.getElementById('console-panel');
   const settingsPanelEl = document.getElementById('settings-panel');
-  const graphPanelEl = document.getElementById('graph-panel');
 
-  renderTerminalPanel(terminalPanelEl);
+  renderConsolePanel(consolePanelEl);
   setTerminalTheme(THEMES[currentThemeId].terminal);
   restoreSessions();
-
-  let graphPanelLoaded = false;
 
   async function onSelectTheme(id) {
     currentThemeId = id;
@@ -33,28 +37,19 @@ async function main() {
   }
 
   function showView(view) {
-    terminalPanelEl.hidden = view !== 'terminals';
-    graphPanelEl.hidden = view !== 'graph';
+    consolePanelEl.hidden = view !== 'console';
     settingsPanelEl.hidden = view !== 'settings';
     renderNavBar(navBarEl, { onNavigate: showView, active: view });
     if (view === 'settings') {
       renderSettingsPanel(settingsPanelEl, { currentThemeId, onSelectTheme });
-    } else if (view === 'terminals') {
-      forceRedrawTerminals();
-    } else if (view === 'graph') {
-      if (!graphPanelLoaded) {
-        graphPanelLoaded = true;
-        renderGraphPanel(graphPanelEl);
-      } else {
-        resumeGraph();
-      }
-    }
-    if (view !== 'graph' && graphPanelLoaded) {
-      pauseGraph();
+      pauseGraphTiles();
+    } else if (view === 'console') {
+      forceRedrawConsole();
+      resumeGraphTiles();
     }
   }
 
-  showView('terminals');
+  showView('console');
 }
 
 main();

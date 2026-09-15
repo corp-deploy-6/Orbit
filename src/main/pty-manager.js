@@ -3,6 +3,10 @@
 import { ipcMain } from 'electron';
 import pty from 'node-pty';
 import { execSync } from 'node:child_process';
+import crypto from 'node:crypto';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 const sessions = new Map(); // sessionId -> IPty
 
@@ -26,17 +30,62 @@ function resolveClaudeCommand() {
   return resolvedClaudeCmd;
 }
 
+// Claude stores transcripts under ~/.claude/projects/<encoded-cwd>/<sessionId>.jsonl,
+// where the cwd is encoded by replacing every non-alphanumeric character with '-'.
+// Undocumented, verified against real paths on this machine.
+function encodeProjectDir(cwd) {
+  return cwd.replace(/[^a-zA-Z0-9]/g, '-');
+}
+
+function transcriptExists(cwd, claudeSessionId) {
+  const projectDir = path.join(os.homedir(), '.claude', 'projects', encodeProjectDir(cwd));
+  const transcriptPath = path.join(projectDir, `${claudeSessionId}.jsonl`);
+  try {
+    return fs.existsSync(transcriptPath);
+  } catch {
+    // Fail closed: an unresumable id that's still wrongly trusted persists
+    // forever and silently retries every restart. Starting fresh is recoverable.
+    return false;
+  }
+}
+
+// Decide fresh-vs-resume and build the pty spawn args + reported claudeSessionId.
+function resolveSpawnPlan(cwd, claudeSessionId) {
+  if (!claudeSessionId) {
+    const id = crypto.randomUUID();
+    return { args: ['--session-id', id], claudeSessionId: id, resumed: false };
+  }
+  if (transcriptExists(cwd, claudeSessionId)) {
+    return { args: ['--resume', claudeSessionId], claudeSessionId, resumed: true };
+  }
+  const id = crypto.randomUUID();
+  return { args: ['--session-id', id], claudeSessionId: id, resumed: false };
+}
+
 export function registerPtyHandlers() {
-  ipcMain.handle('pty:create', (event, { sessionId, cwd, cols, rows }) => {
+  ipcMain.handle('pty:create', (event, { sessionId, cwd, cols, rows, claudeSessionId }) => {
     const stale = sessions.get(sessionId);
     if (stale) {
       stale.kill();
       sessions.delete(sessionId);
     }
 
+    if (!cwd || !fs.existsSync(cwd)) {
+      return { ok: false, code: 'CWD_MISSING', error: `Directory not found: ${cwd}` };
+    }
+    try {
+      if (!fs.statSync(cwd).isDirectory()) {
+        return { ok: false, code: 'CWD_MISSING', error: `Not a directory: ${cwd}` };
+      }
+    } catch (err) {
+      return { ok: false, code: 'CWD_ERROR', error: err.message };
+    }
+
+    const plan = resolveSpawnPlan(cwd, claudeSessionId);
+
     let proc;
     try {
-      proc = pty.spawn(resolveClaudeCommand(), [], {
+      proc = pty.spawn(resolveClaudeCommand(), plan.args, {
         name: 'xterm-256color',
         cols: cols || 80,
         rows: rows || 24,
@@ -66,7 +115,7 @@ export function registerPtyHandlers() {
       }
     });
 
-    return { ok: true };
+    return { ok: true, claudeSessionId: plan.claudeSessionId, resumed: plan.resumed };
   });
 
   ipcMain.on('pty:write', (event, { sessionId, data }) => {

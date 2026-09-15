@@ -1,7 +1,7 @@
 // Persisted terminal session context (JSON file in userData). Cached in memory
-// after first read; sync fs calls since this is small and infrequent. Only
-// cwd/label/order are stored — live process state and scrollback are not
-// restorable, so we don't try.
+// after first read; sync fs calls since this is small and infrequent. Stores an
+// opaque array of {cwd, label, claudeSessionId} — live process state and
+// scrollback are not restorable, so we don't try.
 
 import { ipcMain, app } from 'electron';
 import fs from 'node:fs';

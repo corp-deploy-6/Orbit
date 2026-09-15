@@ -3,8 +3,8 @@ import { contextBridge, ipcRenderer } from 'electron';
 contextBridge.exposeInMainWorld('orbit', {
   pickDirectory: () => ipcRenderer.invoke('dialog:pickDirectory'),
 
-  createTerminal: (sessionId, cwd, cols, rows) =>
-    ipcRenderer.invoke('pty:create', { sessionId, cwd, cols, rows }),
+  createTerminal: (sessionId, cwd, cols, rows, claudeSessionId) =>
+    ipcRenderer.invoke('pty:create', { sessionId, cwd, cols, rows, claudeSessionId }),
 
   writeToTerminal: (sessionId, data) => ipcRenderer.send('pty:write', { sessionId, data }),
 

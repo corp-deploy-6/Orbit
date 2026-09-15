@@ -4,7 +4,42 @@
 
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { WebLinksAddon } from '@xterm/addon-web-links';
 import '@xterm/xterm/css/xterm.css';
+
+// Same URL pattern @xterm/addon-web-links matches internally. Reused here so we
+// can wrap detected links in bold SGR codes as they're written — xterm renders
+// glyphs on canvas (no per-character DOM nodes), so there's no CSS class to
+// target for "always bold" link text; injecting the bold escape codes into the
+// stream is the only way to make the addon's own click targets render bold.
+const URL_REGEX_SOURCE = String.raw`(https?|HTTPS?):[/]{2}[^\s"'!*(){}|\\^<>\`]*[^\s"':,.!?{}|\\^~\[\]\`()<>]`;
+const urlRegex = new RegExp(URL_REGEX_SOURCE);
+const urlRegexGlobal = new RegExp(URL_REGEX_SOURCE, 'g');
+
+// OSC (e.g. hyperlink) and CSI escape sequences, so URL text already inside
+// one (like a CLI's own OSC-8 hyperlinks) is left untouched rather than
+// having bold codes spliced into the middle of it, which corrupts the
+// sequence and desyncs the terminal parser's cursor tracking.
+const ESCAPE_SEQ = /\x1b(?:\][^\x07\x1b]*(?:\x07|\x1b\\)|\[[0-9;?]*[a-zA-Z])/g;
+
+function boldenLinks(chunk) {
+  let result = '';
+  let lastIndex = 0;
+  let match;
+  ESCAPE_SEQ.lastIndex = 0;
+  while ((match = ESCAPE_SEQ.exec(chunk)) !== null) {
+    result += chunk.slice(lastIndex, match.index).replace(urlRegexGlobal, (m) => `\x1b[1m${m}\x1b[22m`);
+    result += match[0];
+    lastIndex = ESCAPE_SEQ.lastIndex;
+  }
+  result += chunk.slice(lastIndex).replace(urlRegexGlobal, (m) => `\x1b[1m${m}\x1b[22m`);
+  return result;
+}
+
+function handleLinkClick(event, uri) {
+  event.preventDefault();
+  window.orbit.confirmOpenLink(uri);
+}
 
 export function createTerminalSession({ id, cwd, theme }) {
   const term = new Terminal({
@@ -15,6 +50,7 @@ export function createTerminalSession({ id, cwd, theme }) {
   });
   const fitAddon = new FitAddon();
   term.loadAddon(fitAddon);
+  term.loadAddon(new WebLinksAddon(handleLinkClick, { urlRegex }));
 
   let ptyCols = 80;
   let ptyRows = 24;
@@ -56,7 +92,7 @@ export function createTerminalSession({ id, cwd, theme }) {
       });
 
       dataUnsubscribe = window.orbit.onTerminalData(id, (chunk) => {
-        term.write(chunk);
+        term.write(boldenLinks(chunk));
       });
 
       exitUnsubscribe = window.orbit.onTerminalExit(id, () => {

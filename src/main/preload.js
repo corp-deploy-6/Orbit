@@ -59,4 +59,6 @@ contextBridge.exposeInMainWorld('orbit', {
   getUsage: (sessionId, cwd) => ipcRenderer.invoke('usage:get', { sessionId, cwd }),
 
   resetUsage: (sessionId, cwd) => ipcRenderer.invoke('usage:reset', { sessionId, cwd }),
+
+  confirmOpenLink: (url) => ipcRenderer.invoke('shell:confirmOpenLink', url),
 });

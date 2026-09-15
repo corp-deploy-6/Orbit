@@ -1,16 +1,12 @@
 // Reads Claude Code's own local session transcripts (JSONL, under
-// ~/.claude/projects/<encoded-cwd>/<session-id>.jsonl) to report approximate
-// token/cost usage for a terminal pane. Purely read-only: never touches the
-// pty lifecycle, only looks at files Claude Code already writes on disk.
+// ~/.claude/projects/<encoded-cwd>/<session-id>.jsonl) to report cumulative
+// session cost for a terminal pane. Purely read-only: never touches the pty
+// lifecycle, only looks at files Claude Code already writes on disk.
 
 import { ipcMain } from 'electron';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-
-// Claude models currently top out at a 200k-token context window. Good enough
-// as a fixed reference point for a lightweight indicator.
-const CONTEXT_WINDOW = 200000;
 
 // Transcripts can grow to tens of MB over a long session; only the tail has
 // the most recent usage/cost data we care about.
@@ -65,10 +61,9 @@ function readTail(filePath) {
 function extractUsage(filePath) {
   const lines = readTail(filePath);
 
-  let contextTokens = null;
   let costUSD = null;
 
-  for (let i = lines.length - 1; i >= 0 && (contextTokens === null || costUSD === null); i--) {
+  for (let i = lines.length - 1; i >= 0 && costUSD === null; i--) {
     const line = lines[i].trim();
     if (!line) continue;
 
@@ -79,23 +74,13 @@ function extractUsage(filePath) {
       continue;
     }
 
-    if (contextTokens === null && entry.type === 'assistant' && entry.message?.usage) {
-      const u = entry.message.usage;
-      const total =
-        (u.input_tokens || 0) +
-        (u.cache_creation_input_tokens || 0) +
-        (u.cache_read_input_tokens || 0) +
-        (u.output_tokens || 0);
-      if (total > 0) contextTokens = total;
-    }
-
-    if (costUSD === null && entry.type === 'cost-state' && typeof entry.totalCostUSD === 'number') {
+    if (entry.type === 'cost-state' && typeof entry.totalCostUSD === 'number') {
       costUSD = entry.totalCostUSD;
     }
   }
 
-  if (contextTokens === null) return null;
-  return { contextTokens, contextWindow: CONTEXT_WINDOW, costUSD };
+  if (costUSD === null) return null;
+  return { costUSD };
 }
 
 // Resolves a pane's usage, locking onto a transcript file only once it's been

@@ -60,14 +60,6 @@ export function createTerminalElement(terminal, { onRename, onClose, onFocus } =
   return entry;
 }
 
-// Formats a raw token count as e.g. "1.2k" / "842". Anything under a
-// thousand is shown as-is since "k" rounding would lose all precision.
-function formatTokens(n) {
-  if (n < 1000) return String(n);
-  const k = n / 1000;
-  return `${k >= 10 ? Math.round(k) : k.toFixed(1)}k`;
-}
-
 function formatCost(usd) {
   if (usd < 0.01) return '<$0.01';
   return `$${usd.toFixed(2)}`;
@@ -76,16 +68,13 @@ function formatCost(usd) {
 // Shows/hides the per-pane usage indicator. `usage` is whatever
 // window.orbit.getUsage() resolved to: null when no matching transcript
 // could be found/parsed for this pane (indicator stays hidden), or
-// { contextTokens, contextWindow, costUSD? } otherwise.
+// { costUSD } otherwise.
 export function setUsageBadge(entry, usage) {
-  if (!usage) {
+  if (!usage || typeof usage.costUSD !== 'number') {
     entry.usageBadge.hidden = true;
     return;
   }
-  const { contextTokens, contextWindow, costUSD } = usage;
-  let text = `~${formatTokens(contextTokens)} / ${formatTokens(contextWindow)} ctx`;
-  if (typeof costUSD === 'number') text += ` · ${formatCost(costUSD)}`;
-  entry.usageBadge.textContent = text;
+  entry.usageBadge.textContent = formatCost(usage.costUSD);
   entry.usageBadge.hidden = false;
 }
 

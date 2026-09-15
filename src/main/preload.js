@@ -61,4 +61,6 @@ contextBridge.exposeInMainWorld('orbit', {
   resetUsage: (sessionId, cwd) => ipcRenderer.invoke('usage:reset', { sessionId, cwd }),
 
   confirmOpenLink: (url) => ipcRenderer.invoke('shell:confirmOpenLink', url),
+
+  getGraftGraph: () => ipcRenderer.invoke('graftGraph:get'),
 });

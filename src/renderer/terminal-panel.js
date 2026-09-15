@@ -45,12 +45,14 @@ async function writeSessions(list) {
   }
 }
 
-// Persist cwd/label/order so terminals can be respawned on next launch.
-// Live process state and scrollback are not preserved.
+// Persist cwd/label/claudeSessionId/order so terminals can be respawned (and their
+// Claude conversation resumed) on next launch. Live process state and scrollback
+// are not preserved. Every status is kept, including 'ended' and 'failed' — a
+// terminal only drops out of persistence by being explicitly closed (removeTerminal).
 function persistSessions() {
   const toSave = terminals
-    .filter((t) => t.cwd && t.status !== 'ended' && t.status !== 'failed')
-    .map((t) => ({ cwd: t.cwd, label: t.label }));
+    .filter((t) => t.cwd)
+    .map((t) => ({ cwd: t.cwd, label: t.label, claudeSessionId: t.claudeSessionId }));
   writeSessions([...toSave, ...unrestored]);
 }
 
@@ -124,7 +126,13 @@ function render() {
 }
 
 async function spawnSession(record) {
-  const session = createTerminalSession({ id: record.id, cwd: record.cwd, theme: terminalTheme });
+  const hadPriorSessionId = !!record.claudeSessionId;
+  const session = createTerminalSession({
+    id: record.id,
+    cwd: record.cwd,
+    theme: terminalTheme,
+    claudeSessionId: record.claudeSessionId,
+  });
   sessions.set(record.id, session);
 
   const result = await session.ready;
@@ -146,12 +154,19 @@ async function spawnSession(record) {
     return;
   }
 
+  // Main owns the fresh-vs-resume decision and may have generated a new id
+  // (e.g. resume fallback) — always record what it actually used.
+  record.claudeSessionId = result.claudeSessionId;
   record.status = 'running';
   render();
   persistSessions();
 
   const entry = terminalEls.get(record.id);
+  const hint = hadPriorSessionId && !result.resumed
+    ? 'started a new session — previous transcript not found'
+    : null;
   session.attach(entry.mount, {
+    hint,
     onExit: () => {
       record.status = 'ended';
       persistSessions();
@@ -185,6 +200,7 @@ async function addTerminal() {
   if (record.id === activeId) {
     setActiveCwd(record.cwd);
   }
+  persistSessions();
 
   await spawnSession(record);
   if (record.status === 'running') setActive(record.id);
@@ -197,6 +213,7 @@ async function restoreTerminal(saved) {
     labelCustomized: true,
     status: 'starting',
     cwd: saved.cwd,
+    claudeSessionId: saved.claudeSessionId,
   };
   terminals.push(record);
   render();
@@ -208,7 +225,7 @@ export async function restoreSessions() {
   const saved = ((await window.orbit.getSessions()) || []).filter((entry) => entry?.cwd);
   if (!saved.length) return;
 
-  unrestored = saved.map(({ cwd, label }) => ({ cwd, label }));
+  unrestored = saved.map(({ cwd, label, claudeSessionId }) => ({ cwd, label, claudeSessionId }));
 
   // One at a time. Each entry leaves `unrestored` only as it becomes a live
   // terminal, so every write in between still covers the full set.

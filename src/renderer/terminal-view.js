@@ -41,7 +41,7 @@ function handleLinkClick(event, uri) {
   window.orbit.confirmOpenLink(uri);
 }
 
-export function createTerminalSession({ id, cwd, theme }) {
+export function createTerminalSession({ id, cwd, theme, claudeSessionId }) {
   const term = new Terminal({
     convertEol: true,
     fontSize: 13,
@@ -54,7 +54,7 @@ export function createTerminalSession({ id, cwd, theme }) {
 
   let ptyCols = 80;
   let ptyRows = 24;
-  const ready = window.orbit.createTerminal(id, cwd, ptyCols, ptyRows);
+  const ready = window.orbit.createTerminal(id, cwd, ptyCols, ptyRows, claudeSessionId);
 
   let disposed = false;
   let inputDisposable = null;
@@ -81,11 +81,15 @@ export function createTerminalSession({ id, cwd, theme }) {
   return {
     ready,
 
-    attach(container, { onExit } = {}) {
+    attach(container, { onExit, hint } = {}) {
       if (disposed) return;
 
       term.open(container);
       fitAndSyncPty();
+
+      if (hint) {
+        term.write(`\x1b[90m${hint}\x1b[0m\r\n`);
+      }
 
       inputDisposable = term.onData((data) => {
         window.orbit.writeToTerminal(id, data);

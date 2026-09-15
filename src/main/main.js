@@ -6,6 +6,7 @@ import { registerDialogHandlers } from './dialog-manager.js';
 import { registerSettingsHandlers } from './settings-store.js';
 import { registerFsTreeHandlers, unwatchAllDirs } from './fs-tree-manager.js';
 import { registerSessionHandlers } from './session-store.js';
+import { registerUsageHandlers } from './usage-tracker.js';
 import { registerShellHandlers } from './shell-manager.js';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
@@ -65,6 +66,7 @@ app.whenReady().then(() => {
   registerSettingsHandlers();
   registerFsTreeHandlers();
   registerSessionHandlers();
+  registerUsageHandlers();
   registerShellHandlers();
   createWindow();
 

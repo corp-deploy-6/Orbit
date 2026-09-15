@@ -1,11 +1,12 @@
 // Terminal grid mechanics: in-memory terminal records, add/close/rename, auto-fit grid,
 // and the folder-picker -> pty spawn lifecycle for each terminal.
 
-import { createTerminalElement, updateTerminalHeader, renderBody } from './terminal.js';
+import { createTerminalElement, updateTerminalHeader, renderBody, setUsageBadge } from './terminal.js';
 import { createTerminalSession } from './terminal-view.js';
 import { renderFileTreePanel, setActiveCwd } from './file-tree-panel.js';
 
 const MAX_TERMINALS = 6;
+const USAGE_POLL_MS = 15000;
 
 let terminals = [];
 let nextId = 1;
@@ -20,6 +21,28 @@ let unrestored = [];
 
 const terminalEls = new Map(); // id -> entry from createTerminalElement
 const sessions = new Map(); // id -> terminal session controller
+let usageIntervalId = null;
+
+// Reads the pane's own transcript-derived usage (main process, read-only) and
+// updates its header badge. Silently leaves the badge hidden on any failure —
+// a missing/unparseable transcript is expected for non-Claude commands.
+async function refreshUsage(record) {
+  if (record.status !== 'running' || !record.cwd) return;
+  const entry = terminalEls.get(record.id);
+  if (!entry) return;
+  let usage = null;
+  try {
+    usage = await window.orbit.getUsage(record.id, record.cwd);
+  } catch {
+    usage = null;
+  }
+  // Terminal may have closed while the lookup was in flight.
+  if (terminalEls.get(record.id) === entry) setUsageBadge(entry, usage);
+}
+
+function refreshAllUsage() {
+  for (const terminal of terminals) refreshUsage(terminal);
+}
 
 export function setTerminalTheme(theme) {
   terminalTheme = theme;
@@ -77,8 +100,9 @@ function setActive(id) {
   if (activeId === id) return;
   activeId = id;
   render();
-  const cwd = terminals.find((t) => t.id === id)?.cwd ?? null;
-  setActiveCwd(cwd);
+  const record = terminals.find((t) => t.id === id);
+  setActiveCwd(record?.cwd ?? null);
+  if (record) refreshUsage(record);
 }
 
 const handlers = {
@@ -124,6 +148,16 @@ function render() {
 }
 
 async function spawnSession(record) {
+  // A fresh pty is about to be created for this pane id. Drop any stale
+  // usage-tracker claim first, since the id is a renderer-local counter that
+  // resets on reload/restore and could otherwise be reused onto an old,
+  // unrelated transcript file.
+  try {
+    await window.orbit.resetUsage(record.id, record.cwd);
+  } catch {
+    // best-effort; usage badge just stays uncached
+  }
+
   const session = createTerminalSession({ id: record.id, cwd: record.cwd, theme: terminalTheme });
   sessions.set(record.id, session);
 
@@ -149,6 +183,7 @@ async function spawnSession(record) {
   record.status = 'running';
   render();
   persistSessions();
+  refreshUsage(record);
 
   const entry = terminalEls.get(record.id);
   session.attach(entry.mount, {
@@ -231,6 +266,9 @@ export function renderTerminalPanel(container) {
   unrestored = [];
   nextId = 1;
   activeId = null;
+
+  if (usageIntervalId) clearInterval(usageIntervalId);
+  usageIntervalId = setInterval(refreshAllUsage, USAGE_POLL_MS);
 
   const panel = document.createElement('div');
   panel.className = 'terminal-panel-inner';

@@ -19,6 +19,18 @@
   --accent-secondary: #5c8a5c;
   --focus-ring: #f0b95c;
   --danger: #c2624a;
+
+  /* rgb-triple twins of the panel colors above, used by rgba() opacity math.
+     Fallback values only — themes/*.js sets the real ones per theme. */
+  --bg-base-rgb: 21, 19, 15;
+  --bg-sunken-rgb: 15, 13, 10;
+  --panel-surface-rgb: 34, 30, 24;
+  --panel-header-rgb: 42, 37, 29;
+
+  /* Per-panel backdrop opacity, default 1 = today's fully opaque look. */
+  --nav-opacity: 1;
+  --console-opacity: 1;
+  --filetree-opacity: 1;
 }
 
 html, body {
@@ -30,16 +42,29 @@ html, body {
   color: var(--text-primary);
 }
 
+/* Full-window 3D graph, mounted once and always live behind #app. Dead space
+   in #app (panel padding/gaps) is pointer-events:none so clicks/drags reach
+   this layer; real controls re-enable pointer-events explicitly below. */
+#graph-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
 #app {
+  position: relative;
+  z-index: 1;
   display: flex;
   height: 100%;
   width: 100%;
+  pointer-events: none;
 }
 
 #nav-bar {
   width: 64px;
   flex-shrink: 0;
-  background: var(--bg-sunken);
+  background: rgba(var(--bg-sunken-rgb), var(--nav-opacity));
   border-right: 1px solid var(--border-subtle);
   display: flex;
   flex-direction: column;
@@ -49,6 +74,7 @@ html, body {
 }
 
 .nav-item {
+  pointer-events: auto;
   width: 44px;
   height: 44px;
   display: flex;
@@ -82,6 +108,7 @@ html, body {
   display: flex;
   min-width: 0;
   color: var(--text-muted);
+  pointer-events: none;
 }
 
 #settings-panel {
@@ -89,6 +116,7 @@ html, body {
   display: flex;
   min-width: 0;
   color: var(--text-muted);
+  pointer-events: none;
 }
 
 #console-panel[hidden],
@@ -110,13 +138,14 @@ html, body {
   height: 100%;
   padding: 12px;
   gap: 12px;
+  background: rgba(var(--bg-base-rgb), var(--console-opacity));
 }
 
 .file-tree-panel {
   width: 240px;
   flex-shrink: 0;
   border-left: 1px solid var(--border-subtle);
-  background: var(--bg-sunken);
+  background: rgba(var(--bg-sunken-rgb), var(--filetree-opacity));
   overflow: auto;
   display: flex;
   flex-direction: column;
@@ -140,6 +169,7 @@ html, body {
 }
 
 .tree-row {
+  pointer-events: auto;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -211,7 +241,8 @@ html, body {
 }
 
 .add-tile-btn {
-  background: var(--panel-header);
+  pointer-events: auto;
+  background: rgba(var(--panel-header-rgb), var(--console-opacity));
   color: var(--text-primary);
   border: 1px solid var(--border-strong);
   border-radius: 6px;
@@ -241,9 +272,10 @@ html, body {
 }
 
 .tile {
+  pointer-events: auto;
   display: flex;
   flex-direction: column;
-  background: var(--panel-surface);
+  background: rgba(var(--panel-surface-rgb), var(--console-opacity));
   overflow: hidden;
 }
 
@@ -256,7 +288,7 @@ html, body {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  background: var(--panel-header);
+  background: rgba(var(--panel-header-rgb), var(--console-opacity));
   border-bottom: 1px solid var(--border-subtle);
   padding: 6px 8px;
   flex-shrink: 0;
@@ -285,23 +317,6 @@ html, body {
   font-size: 11px;
   color: var(--text-secondary);
   white-space: nowrap;
-}
-
-.tile-action {
-  background: transparent;
-  border: 1px solid var(--border-strong);
-  color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 3px 8px;
-  border-radius: 4px;
-  flex-shrink: 0;
-}
-
-.tile-action:hover {
-  background: var(--bg-raised);
-  color: var(--text-primary);
 }
 
 .tile-close {
@@ -378,13 +393,6 @@ html, body {
   }
 }
 
-.graph-area {
-  height: 100%;
-  width: 100%;
-  position: relative;
-  overflow: hidden;
-}
-
 .graph-panel-message {
   display: flex;
   align-items: center;
@@ -392,15 +400,18 @@ html, body {
   height: 100%;
   color: var(--text-muted);
   font-size: 13px;
+  background: var(--bg-base);
 }
 
 .settings-panel-inner {
+  pointer-events: none;
   display: flex;
   flex-direction: column;
   width: 100%;
   height: 100%;
   padding: 12px;
   gap: 16px;
+  background: rgba(var(--bg-base-rgb), var(--console-opacity));
 }
 
 .settings-heading {
@@ -416,12 +427,13 @@ html, body {
 }
 
 .theme-row {
+  pointer-events: auto;
   display: flex;
   align-items: center;
   gap: 10px;
   border: 1px solid var(--border-subtle);
   border-radius: 8px;
-  background: var(--panel-surface);
+  background: rgba(var(--panel-surface-rgb), var(--console-opacity));
   padding: 10px 12px;
   cursor: pointer;
   color: var(--text-primary);
@@ -456,4 +468,54 @@ html, body {
 
 .theme-swatch-segment {
   flex: 1;
+}
+
+.opacity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 320px;
+}
+
+.opacity-row {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.opacity-row-label {
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.opacity-row input[type='range'] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.opacity-row-value {
+  width: 34px;
+  flex-shrink: 0;
+  text-align: right;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.reload-graph-btn {
+  pointer-events: auto;
+  align-self: flex-start;
+  background: rgba(var(--panel-header-rgb), var(--console-opacity));
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.reload-graph-btn:hover {
+  background: var(--bg-raised);
 }

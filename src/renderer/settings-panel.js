@@ -1,5 +1,7 @@
-// Settings view: lists available themes as radio rows. Selecting a theme
-// calls back to the caller, which persists + applies it.
+// Settings view: lists available themes as radio rows, plus the graph
+// backdrop's per-panel opacity sliders and a manual reload button. Selecting
+// a theme / dragging a slider / clicking reload calls back to the caller,
+// which persists + applies it live.
 
 import { THEMES, SELECTABLE_THEME_IDS } from './themes/index.js';
 
@@ -10,6 +12,14 @@ const SWATCH_TOKENS = [
   '--accent',
   '--accent-secondary',
   '--text-primary',
+];
+
+// key -> label shown next to each opacity slider. Order matches the panels
+// left-to-right in the app layout (nav, console, file tree).
+const OPACITY_ROWS = [
+  { key: 'nav', label: 'Nav Bar' },
+  { key: 'console', label: 'Console' },
+  { key: 'fileTree', label: 'File Tree' },
 ];
 
 function renderSwatch(theme) {
@@ -27,7 +37,10 @@ function renderSwatch(theme) {
   return swatch;
 }
 
-export function renderSettingsPanel(container, { currentThemeId, onSelectTheme }) {
+export function renderSettingsPanel(
+  container,
+  { currentThemeId, onSelectTheme, opacity, onOpacityChange, onReloadGraph }
+) {
   container.innerHTML = '';
 
   const panel = document.createElement('div');
@@ -63,5 +76,53 @@ export function renderSettingsPanel(container, { currentThemeId, onSelectTheme }
   }
 
   panel.appendChild(list);
+
+  const graphHeading = document.createElement('h2');
+  graphHeading.className = 'settings-heading';
+  graphHeading.textContent = 'Graph Backdrop';
+  panel.appendChild(graphHeading);
+
+  const opacityList = document.createElement('div');
+  opacityList.className = 'opacity-list';
+
+  for (const { key, label } of OPACITY_ROWS) {
+    const row = document.createElement('div');
+    row.className = 'opacity-row';
+
+    const labelEl = document.createElement('span');
+    labelEl.className = 'opacity-row-label';
+    labelEl.textContent = label;
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = '0';
+    slider.max = '1';
+    slider.step = '0.05';
+    slider.value = String(opacity?.[key] ?? 1);
+
+    const valueEl = document.createElement('span');
+    valueEl.className = 'opacity-row-value';
+    valueEl.textContent = `${Math.round((opacity?.[key] ?? 1) * 100)}%`;
+
+    slider.addEventListener('input', () => {
+      const value = Number(slider.value);
+      valueEl.textContent = `${Math.round(value * 100)}%`;
+      onOpacityChange?.(key, value);
+    });
+
+    row.appendChild(labelEl);
+    row.appendChild(slider);
+    row.appendChild(valueEl);
+    opacityList.appendChild(row);
+  }
+
+  panel.appendChild(opacityList);
+
+  const reloadBtn = document.createElement('button');
+  reloadBtn.className = 'reload-graph-btn';
+  reloadBtn.textContent = 'Reload Graph';
+  reloadBtn.addEventListener('click', () => onReloadGraph?.());
+  panel.appendChild(reloadBtn);
+
   container.appendChild(panel);
 }

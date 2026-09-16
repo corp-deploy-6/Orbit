@@ -18,6 +18,10 @@ export const neptuneSilver = {
     '--accent-secondary': '#b8c2d3',
     '--focus-ring': '#e0c47f',
     '--danger': '#e07a76',
+    '--bg-base-rgb': '11, 20, 38',
+    '--bg-sunken-rgb': '7, 13, 27',
+    '--panel-surface-rgb': '19, 32, 58',
+    '--panel-header-rgb': '26, 41, 71',
   },
   terminal: {
     background: '#070d1b',

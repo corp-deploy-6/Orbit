@@ -18,6 +18,12 @@ export const orbitDefault = {
     '--accent-secondary': '#5c8a5c',
     '--focus-ring': '#f0b95c',
     '--danger': '#c2624a',
+    // rgb-triple twins of the panel surface colors above, for rgba() opacity math
+    // (per-panel backdrop opacity sliders). Keep in sync with their hex tokens.
+    '--bg-base-rgb': '21, 19, 15',
+    '--bg-sunken-rgb': '15, 13, 10',
+    '--panel-surface-rgb': '34, 30, 24',
+    '--panel-header-rgb': '42, 37, 29',
   },
   terminal: {
     background: '#0f0d0a',

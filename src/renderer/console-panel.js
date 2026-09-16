@@ -1,14 +1,13 @@
-// Console tile grid mechanics: in-memory tile records (terminal or graph type),
-// add/close/rename, auto-fit grid, and the per-type lifecycle — folder-picker ->
-// pty spawn for terminal tiles, immediate attach for graph tiles.
+// Console tile grid mechanics: in-memory terminal tile records, add/close/
+// rename, auto-fit grid, and the per-tile lifecycle (folder-picker -> pty
+// spawn). The graph is no longer a tile type — it's a single full-window
+// backdrop instance owned by renderer.js (see graph-view.js).
 
 import { createTileElement, updateTileHeader, renderBody, setUsageBadge } from './tile-chrome.js';
 import { createTerminalSession } from './terminal-view.js';
-import { createGraphView } from './graph-view.js';
 import { renderFileTreePanel, setActiveCwd } from './file-tree-panel.js';
 
 const MAX_TILES = 6;
-const MAX_GRAPH_TILES = 2; // separate, lower cap: each graph tile owns its own WebGL context
 const USAGE_POLL_MS = 15000;
 
 let tiles = [];
@@ -16,7 +15,6 @@ let nextId = 1;
 let activeId = null;
 let gridEl = null;
 let addTerminalBtn = null;
-let addGraphBtn = null;
 let terminalTheme = null;
 // Saved sessions not yet turned into tiles: still queued mid-restore, or
 // skipped for a cap. Always persisted after the live tiles, so a
@@ -25,13 +23,7 @@ let unrestored = [];
 
 const tileEls = new Map(); // id -> entry from createTileElement
 const sessions = new Map(); // id -> terminal session controller
-const graphViews = new Map(); // id -> graph view controller
 let usageIntervalId = null;
-let toolActivityUnsub = null;
-
-function graphTileCount() {
-  return tiles.filter((t) => t.type === 'graph').length;
-}
 
 // Reads the pane's own transcript-derived usage (main process, read-only) and
 // updates its header badge. Silently leaves the badge hidden on any failure —
@@ -59,23 +51,10 @@ export function setTerminalTheme(theme) {
   for (const session of sessions.values()) session.setTheme(theme);
 }
 
-export function refreshGraphTheme() {
-  for (const view of graphViews.values()) view.refreshTheme();
-}
-
 export function forceRedrawConsole() {
   for (const session of sessions.values()) session.forceRedraw();
-  for (const view of graphViews.values()) view.forceRedraw();
   const activeSession = sessions.get(activeId);
   activeSession?.focus();
-}
-
-export function pauseGraphTiles() {
-  for (const view of graphViews.values()) view.pause();
-}
-
-export function resumeGraphTiles() {
-  for (const view of graphViews.values()) view.resume();
 }
 
 function basename(p) {
@@ -91,19 +70,14 @@ async function writeSessions(list) {
   }
 }
 
-// Persist cwd/label/claudeSessionId/order (terminal tiles) or just the type
-// (graph tiles — nothing else about a graph view is worth resuming) so tiles
-// can be recreated on next launch. Live process/renderer state is not
-// preserved. Every terminal status is kept, including 'ended' and 'failed' —
-// a tile only drops out of persistence by being explicitly closed (removeTile).
+// Persist cwd/label/claudeSessionId/order so tiles can be recreated on next
+// launch. Live process/renderer state is not preserved. Every terminal status
+// is kept, including 'ended' and 'failed' — a tile only drops out of
+// persistence by being explicitly closed (removeTile).
 function persistSessions() {
   const toSave = tiles
-    .filter((t) => t.type === 'graph' || t.cwd)
-    .map((t) =>
-      t.type === 'graph'
-        ? { type: 'graph' }
-        : { type: 'terminal', cwd: t.cwd, label: t.label, claudeSessionId: t.claudeSessionId }
-    );
+    .filter((t) => t.cwd)
+    .map((t) => ({ type: 'terminal', cwd: t.cwd, label: t.label, claudeSessionId: t.claudeSessionId }));
   writeSessions([...toSave, ...unrestored]);
 }
 
@@ -122,23 +96,16 @@ function removeTile(id) {
     session.dispose();
     sessions.delete(id);
   }
-
-  const view = graphViews.get(id);
-  if (view) {
-    view.dispose();
-    graphViews.delete(id);
-  }
 }
 
 // Re-pointing the file tree resets its expanded folders, so only do it when
 // the active tile actually changes (not on every click into the same one).
-// A graph tile has no cwd, so focusing one clears the file tree.
 function setActive(id) {
   if (activeId === id) return;
   activeId = id;
   render();
   const record = tiles.find((t) => t.id === id);
-  setActiveCwd(record?.type === 'terminal' ? (record.cwd ?? null) : null);
+  setActiveCwd(record?.cwd ?? null);
   if (record) refreshUsage(record);
 }
 
@@ -161,9 +128,6 @@ const handlers = {
     }
   },
   onFocus: setActive,
-  onReload: (id) => {
-    graphViews.get(id)?.reload();
-  },
 };
 
 function render() {
@@ -178,11 +142,6 @@ function render() {
       // tile to type) would detach and reattach it — appendChild always does
       // remove-then-insert, which drops xterm's just-set input focus.
       gridEl.appendChild(entry.el);
-      if (tile.type === 'graph') {
-        const view = createGraphView();
-        graphViews.set(tile.id, view);
-        view.attach(entry.mount);
-      }
     } else {
       updateTileHeader(entry, { ...tile, active: tile.id === activeId });
       renderBody(entry, tile);
@@ -190,7 +149,6 @@ function render() {
   }
 
   addTerminalBtn.disabled = tiles.length >= MAX_TILES;
-  addGraphBtn.disabled = tiles.length >= MAX_TILES || graphTileCount() >= MAX_GRAPH_TILES;
 }
 
 async function spawnSession(record) {
@@ -286,17 +244,6 @@ async function addTerminal() {
   if (record.status === 'running') setActive(record.id);
 }
 
-function addGraph() {
-  if (tiles.length >= MAX_TILES || graphTileCount() >= MAX_GRAPH_TILES) return;
-
-  const id = nextId++;
-  const record = { id, type: 'graph', label: `Graph ${id}` };
-  tiles.push(record);
-  render();
-  persistSessions();
-  setActive(record.id);
-}
-
 async function restoreTerminal(saved) {
   const record = {
     id: nextId++,
@@ -313,41 +260,30 @@ async function restoreTerminal(saved) {
   await spawnSession(record);
 }
 
-function restoreGraph() {
-  const id = nextId++;
-  const record = { id, type: 'graph', label: `Graph ${id}` };
-  tiles.push(record);
-  render();
-}
-
 export async function restoreSessions() {
   const raw = (await window.orbit.getSessions()) || [];
   // Old saved sessions predate the `type` field — default them to 'terminal'.
-  const saved = raw
-    .map((entry) => ({ type: 'terminal', ...entry }))
-    .filter((entry) => entry.type === 'graph' || entry.cwd);
+  // Entries with type 'graph' (from before the graph became a full-window
+  // backdrop instead of a tile) are dropped quietly — nothing about a graph
+  // tile was ever worth resuming.
+  const saved = raw.map((entry) => ({ type: 'terminal', ...entry })).filter((entry) => entry.type === 'terminal' && entry.cwd);
   if (!saved.length) return;
 
-  unrestored = saved.map((entry) =>
-    entry.type === 'graph'
-      ? { type: 'graph' }
-      : { type: 'terminal', cwd: entry.cwd, label: entry.label, claudeSessionId: entry.claudeSessionId }
-  );
+  unrestored = saved.map((entry) => ({
+    type: 'terminal',
+    cwd: entry.cwd,
+    label: entry.label,
+    claudeSessionId: entry.claudeSessionId,
+  }));
 
   // One at a time. Each entry leaves `unrestored` only as it becomes a live
   // tile, so every write in between still covers the full set.
   while (unrestored.length && tiles.length < MAX_TILES) {
-    const next = unrestored.shift();
-    if (next.type === 'graph') {
-      if (graphTileCount() >= MAX_GRAPH_TILES) continue; // drop, over the graph-specific cap
-      restoreGraph();
-    } else {
-      await restoreTerminal(next);
-    }
+    await restoreTerminal(unrestored.shift());
   }
 
   // Point the file tree once at the end instead of once per restored tile.
-  const firstReady = tiles.find((t) => t.type === 'graph' || t.status === 'running');
+  const firstReady = tiles.find((t) => t.status === 'running');
   if (activeId === null && firstReady) setActive(firstReady.id);
   persistSessions();
 }
@@ -356,8 +292,6 @@ export function renderConsolePanel(container) {
   container.innerHTML = '';
   for (const session of sessions.values()) session.dispose();
   sessions.clear();
-  for (const view of graphViews.values()) view.dispose();
-  graphViews.clear();
   tileEls.clear();
   tiles = [];
   unrestored = [];
@@ -366,13 +300,6 @@ export function renderConsolePanel(container) {
 
   if (usageIntervalId) clearInterval(usageIntervalId);
   usageIntervalId = setInterval(refreshAllUsage, USAGE_POLL_MS);
-
-  // One subscription for the whole panel: a file touched by any pane pulses in
-  // every open graph tile (pulses aren't scoped per-pane in v1).
-  toolActivityUnsub?.();
-  toolActivityUnsub = window.orbit.onToolActivity((paths) => {
-    for (const view of graphViews.values()) view.pulse(paths);
-  });
 
   const panel = document.createElement('div');
   panel.className = 'console-panel-inner';
@@ -385,13 +312,7 @@ export function renderConsolePanel(container) {
   addTerminalBtn.textContent = '+ Add Terminal';
   addTerminalBtn.addEventListener('click', addTerminal);
 
-  addGraphBtn = document.createElement('button');
-  addGraphBtn.className = 'add-tile-btn';
-  addGraphBtn.textContent = '+ Add Graph';
-  addGraphBtn.addEventListener('click', addGraph);
-
   toolbar.appendChild(addTerminalBtn);
-  toolbar.appendChild(addGraphBtn);
 
   gridEl = document.createElement('div');
   gridEl.className = 'tile-grid';

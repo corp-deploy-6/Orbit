@@ -18,6 +18,10 @@ export const lunar = {
     '--accent-secondary': '#8f96a8',
     '--focus-ring': '#7d9aee',
     '--danger': '#d1616a',
+    '--bg-base-rgb': '20, 22, 28',
+    '--bg-sunken-rgb': '13, 15, 20',
+    '--panel-surface-rgb': '32, 35, 44',
+    '--panel-header-rgb': '40, 44, 55',
   },
   terminal: {
     background: '#0d0f14',

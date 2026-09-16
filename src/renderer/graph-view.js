@@ -1,8 +1,8 @@
-// Per-tile graph view: renders Orbit's own graft repo graph (graft/.graph/wiring.json)
-// as a 3D force-directed graph. 3d-force-graph is lazy-imported on first
-// activation so it never costs startup time for users who don't open a graph tile.
-// Instance-based (mirrors terminal-view.js's createTerminalSession) so multiple
-// graph tiles can coexist without clobbering each other's renderer/resizeObserver.
+// Full-window graph backdrop: renders Orbit's own graft repo graph
+// (graft/.graph/wiring.json) as a 3D force-directed graph. 3d-force-graph is
+// lazy-imported on first attach() so it never costs startup time before the
+// first frame. renderer.js owns exactly one instance for the app's lifetime,
+// mounted once into #graph-backdrop and never recreated.
 // v1 scope: Orbit's own repo only, manual reload (no file watcher), hover
 // tooltip only (no click-to-open-in-file-tree).
 
@@ -73,6 +73,10 @@ export function createGraphView() {
   let containerEl = null;
   let disposed = false;
   let paused = false;
+  // Bumped on every load() call; a stale call (superseded by a later reload()
+  // or attach() before its awaits resolved) checks this and bails instead of
+  // mutating graphInstance/containerEl out from under the newer call (#48).
+  let loadSeq = 0;
   // Only kind:'file' nodes — every function/method node repeats its parent
   // file's path, so indexing them all would make the lookup ambiguous.
   let nodesByPath = new Map(); // repo-relative POSIX path -> node
@@ -133,11 +137,12 @@ export function createGraphView() {
 
   async function load() {
     if (disposed || !containerEl) return;
+    const seq = ++loadSeq;
     teardownInstance();
     showMessage('Loading graph...');
 
     const res = await window.orbit.getGraftGraph();
-    if (disposed) return;
+    if (disposed || seq !== loadSeq) return;
     if (!res?.ok) {
       showMessage('Run `graft build` to generate the graph.');
       return;
@@ -146,7 +151,7 @@ export function createGraphView() {
     containerEl.innerHTML = '';
 
     const { default: ForceGraph3D } = await import('3d-force-graph');
-    if (disposed) return;
+    if (disposed || seq !== loadSeq) return;
 
     // Indexed off the same objects the graph renders, so a pulse can never
     // point at a node from a previous load().
@@ -172,6 +177,9 @@ export function createGraphView() {
         controls.autoRotate = true;
         controls.autoRotateSpeed = 0.5;
       });
+    // pause() may have landed while this load was awaiting; it only reaches the
+    // instance that existed at the time.
+    if (paused) graphInstance.pauseAnimation();
 
     resizeObserver = new ResizeObserver(() => {
       if (!graphInstance) return;

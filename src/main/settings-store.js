@@ -5,7 +5,12 @@ import { ipcMain, app } from 'electron';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const DEFAULT_SETTINGS = { theme: 'orbit-default' };
+const DEFAULT_SETTINGS = {
+  theme: 'orbit-default',
+  navOpacity: 1,
+  consoleOpacity: 1,
+  fileTreeOpacity: 1,
+};
 
 let cache = null;
 

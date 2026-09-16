@@ -1,9 +1,7 @@
-// Tile chrome shared by both console tile types: header (label + optional
-// type-specific action + close) and a body container. Terminal-specific body
-// states (picking/starting/running/failed) render as before; graph tiles just
-// get a persistent mount div that graph-view.js attaches into once, on creation.
+// Terminal tile chrome: header (label + close) and a body container whose
+// contents depend on the terminal's status (picking/starting/running/failed).
 
-export function createTileElement(tile, { onRename, onClose, onFocus, onReload } = {}) {
+export function createTileElement(tile, { onRename, onClose, onFocus } = {}) {
   const el = document.createElement('div');
   el.className = 'tile';
   el.dataset.tileId = tile.id;
@@ -39,19 +37,6 @@ export function createTileElement(tile, { onRename, onClose, onFocus, onReload }
   header.appendChild(label);
   header.appendChild(usageBadge);
 
-  if (tile.type === 'graph') {
-    const reloadBtn = document.createElement('button');
-    reloadBtn.className = 'tile-action';
-    reloadBtn.textContent = 'Reload';
-    reloadBtn.title = 'Reload graph';
-    reloadBtn.addEventListener('mousedown', (e) => e.stopPropagation());
-    reloadBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      onReload?.(tile.id);
-    });
-    header.appendChild(reloadBtn);
-  }
-
   const closeBtn = document.createElement('button');
   closeBtn.className = 'tile-close';
   closeBtn.textContent = '×';
@@ -69,7 +54,7 @@ export function createTileElement(tile, { onRename, onClose, onFocus, onReload }
   el.appendChild(header);
   el.appendChild(body);
 
-  const entry = { el, body, label, usageBadge, terminalMounted: false, graphMounted: false };
+  const entry = { el, body, label, usageBadge, terminalMounted: false };
   renderBody(entry, tile);
   return entry;
 }
@@ -103,20 +88,7 @@ export function updateTileHeader(entry, tile) {
 // and only when the status changed. Once a terminal has been mounted (status
 // flipped to 'running'), this is a no-op forever for that tile — terminal-view.js
 // owns the body's contents from then on, including freezing it in place on 'ended'.
-// Graph tiles mount their body div exactly once, on tile creation; graph-view.js
-// owns everything inside it after that.
 export function renderBody(entry, tile) {
-  if (tile.type === 'graph') {
-    if (entry.graphMounted) return;
-    entry.graphMounted = true;
-    entry.body.classList.add('tile-body-active');
-    const mount = document.createElement('div');
-    mount.className = 'graph-area';
-    entry.body.appendChild(mount);
-    entry.mount = mount;
-    return;
-  }
-
   if (entry.terminalMounted || entry.renderedStatus === tile.status) return;
   entry.renderedStatus = tile.status;
 

@@ -18,6 +18,10 @@ export const falcon = {
     '--accent-secondary': '#e6b800',
     '--focus-ring': '#ff5c33',
     '--danger': '#ff2e1f',
+    '--bg-base-rgb': '18, 4, 4',
+    '--bg-sunken-rgb': '10, 2, 2',
+    '--panel-surface-rgb': '34, 9, 9',
+    '--panel-header-rgb': '43, 11, 11',
   },
   terminal: {
     background: '#0a0202',

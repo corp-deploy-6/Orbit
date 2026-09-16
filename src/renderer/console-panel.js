@@ -1,0 +1,414 @@
+// Console tile grid mechanics: in-memory tile records (terminal or graph type),
+// add/close/rename, auto-fit grid, and the per-type lifecycle — folder-picker ->
+// pty spawn for terminal tiles, immediate attach for graph tiles.
+
+import { createTileElement, updateTileHeader, renderBody, setUsageBadge } from './tile-chrome.js';
+import { createTerminalSession } from './terminal-view.js';
+import { createGraphView } from './graph-view.js';
+import { renderFileTreePanel, setActiveCwd } from './file-tree-panel.js';
+
+const MAX_TILES = 6;
+const MAX_GRAPH_TILES = 2; // separate, lower cap: each graph tile owns its own WebGL context
+const USAGE_POLL_MS = 15000;
+
+let tiles = [];
+let nextId = 1;
+let activeId = null;
+let gridEl = null;
+let addTerminalBtn = null;
+let addGraphBtn = null;
+let terminalTheme = null;
+// Saved sessions not yet turned into tiles: still queued mid-restore, or
+// skipped for a cap. Always persisted after the live tiles, so a
+// close/rename/add or a crash during restore never drops or reverts them.
+let unrestored = [];
+
+const tileEls = new Map(); // id -> entry from createTileElement
+const sessions = new Map(); // id -> terminal session controller
+const graphViews = new Map(); // id -> graph view controller
+let usageIntervalId = null;
+let toolActivityUnsub = null;
+
+function graphTileCount() {
+  return tiles.filter((t) => t.type === 'graph').length;
+}
+
+// Reads the pane's own transcript-derived usage (main process, read-only) and
+// updates its header badge. Silently leaves the badge hidden on any failure —
+// a missing/unparseable transcript is expected for non-Claude commands.
+async function refreshUsage(record) {
+  if (record.type !== 'terminal' || record.status !== 'running' || !record.cwd) return;
+  const entry = tileEls.get(record.id);
+  if (!entry) return;
+  let usage = null;
+  try {
+    usage = await window.orbit.getUsage(record.id, record.cwd);
+  } catch {
+    usage = null;
+  }
+  // Tile may have closed while the lookup was in flight.
+  if (tileEls.get(record.id) === entry) setUsageBadge(entry, usage);
+}
+
+function refreshAllUsage() {
+  for (const tile of tiles) refreshUsage(tile);
+}
+
+export function setTerminalTheme(theme) {
+  terminalTheme = theme;
+  for (const session of sessions.values()) session.setTheme(theme);
+}
+
+export function refreshGraphTheme() {
+  for (const view of graphViews.values()) view.refreshTheme();
+}
+
+export function forceRedrawConsole() {
+  for (const session of sessions.values()) session.forceRedraw();
+  for (const view of graphViews.values()) view.forceRedraw();
+  const activeSession = sessions.get(activeId);
+  activeSession?.focus();
+}
+
+export function pauseGraphTiles() {
+  for (const view of graphViews.values()) view.pause();
+}
+
+export function resumeGraphTiles() {
+  for (const view of graphViews.values()) view.resume();
+}
+
+function basename(p) {
+  const parts = p.split(/[\\/]/).filter(Boolean);
+  return parts[parts.length - 1] || p;
+}
+
+async function writeSessions(list) {
+  try {
+    await window.orbit.saveSessions(list);
+  } catch (err) {
+    console.error('Failed to save sessions', err);
+  }
+}
+
+// Persist cwd/label/claudeSessionId/order (terminal tiles) or just the type
+// (graph tiles — nothing else about a graph view is worth resuming) so tiles
+// can be recreated on next launch. Live process/renderer state is not
+// preserved. Every terminal status is kept, including 'ended' and 'failed' —
+// a tile only drops out of persistence by being explicitly closed (removeTile).
+function persistSessions() {
+  const toSave = tiles
+    .filter((t) => t.type === 'graph' || t.cwd)
+    .map((t) =>
+      t.type === 'graph'
+        ? { type: 'graph' }
+        : { type: 'terminal', cwd: t.cwd, label: t.label, claudeSessionId: t.claudeSessionId }
+    );
+  writeSessions([...toSave, ...unrestored]);
+}
+
+function removeTile(id) {
+  tiles = tiles.filter((t) => t.id !== id);
+  if (activeId === id) activeId = null;
+
+  const entry = tileEls.get(id);
+  if (entry) {
+    entry.el.remove();
+    tileEls.delete(id);
+  }
+
+  const session = sessions.get(id);
+  if (session) {
+    session.dispose();
+    sessions.delete(id);
+  }
+
+  const view = graphViews.get(id);
+  if (view) {
+    view.dispose();
+    graphViews.delete(id);
+  }
+}
+
+// Re-pointing the file tree resets its expanded folders, so only do it when
+// the active tile actually changes (not on every click into the same one).
+// A graph tile has no cwd, so focusing one clears the file tree.
+function setActive(id) {
+  if (activeId === id) return;
+  activeId = id;
+  render();
+  const record = tiles.find((t) => t.id === id);
+  setActiveCwd(record?.type === 'terminal' ? (record.cwd ?? null) : null);
+  if (record) refreshUsage(record);
+}
+
+const handlers = {
+  onRename: (id, value) => {
+    const t = tiles.find((t) => t.id === id);
+    if (t) {
+      t.label = value;
+      t.labelCustomized = true;
+      persistSessions();
+    }
+  },
+  onClose: (id) => {
+    const wasActive = activeId === id;
+    removeTile(id);
+    persistSessions();
+    render();
+    if (wasActive) {
+      setActiveCwd(null);
+    }
+  },
+  onFocus: setActive,
+  onReload: (id) => {
+    graphViews.get(id)?.reload();
+  },
+};
+
+function render() {
+  for (const tile of tiles) {
+    let entry = tileEls.get(tile.id);
+    if (!entry) {
+      entry = createTileElement({ ...tile, active: tile.id === activeId }, handlers);
+      tileEls.set(tile.id, entry);
+      // Only insert on first mount. Tiles are only ever appended (never
+      // reordered), so re-appending an already-placed node on every render
+      // (e.g. on the mousedown->onFocus render triggered by clicking into a
+      // tile to type) would detach and reattach it — appendChild always does
+      // remove-then-insert, which drops xterm's just-set input focus.
+      gridEl.appendChild(entry.el);
+      if (tile.type === 'graph') {
+        const view = createGraphView();
+        graphViews.set(tile.id, view);
+        view.attach(entry.mount);
+      }
+    } else {
+      updateTileHeader(entry, { ...tile, active: tile.id === activeId });
+      renderBody(entry, tile);
+    }
+  }
+
+  addTerminalBtn.disabled = tiles.length >= MAX_TILES;
+  addGraphBtn.disabled = tiles.length >= MAX_TILES || graphTileCount() >= MAX_GRAPH_TILES;
+}
+
+async function spawnSession(record) {
+  const hadPriorSessionId = !!record.claudeSessionId;
+
+  // A fresh pty is about to be created for this pane id. Drop any stale
+  // usage-tracker claim first, since the id is a renderer-local counter that
+  // resets on reload/restore and could otherwise be reused onto an old,
+  // unrelated transcript file.
+  try {
+    await window.orbit.resetUsage(record.id, record.cwd);
+  } catch {
+    // best-effort; usage badge just stays uncached
+  }
+
+  const session = createTerminalSession({
+    id: record.id,
+    cwd: record.cwd,
+    theme: terminalTheme,
+    claudeSessionId: record.claudeSessionId,
+  });
+  sessions.set(record.id, session);
+
+  const result = await session.ready;
+
+  // Tile may have been closed while the pty was spawning.
+  if (!tiles.includes(record)) {
+    session.dispose();
+    sessions.delete(record.id);
+    return;
+  }
+
+  if (!result?.ok) {
+    record.status = 'failed';
+    record.error = result?.error || 'unknown error';
+    session.dispose();
+    sessions.delete(record.id);
+    render();
+    persistSessions();
+    return;
+  }
+
+  // Main owns the fresh-vs-resume decision and may have generated a new id
+  // (e.g. resume fallback) — always record what it actually used.
+  record.claudeSessionId = result.claudeSessionId;
+  record.status = 'running';
+  render();
+  persistSessions();
+  refreshUsage(record);
+
+  const entry = tileEls.get(record.id);
+  const hint = hadPriorSessionId && !result.resumed
+    ? 'started a new session — previous transcript not found'
+    : null;
+  session.attach(entry.mount, {
+    hint,
+    onExit: () => {
+      record.status = 'ended';
+      persistSessions();
+    },
+  });
+}
+
+async function addTerminal() {
+  if (tiles.length >= MAX_TILES) return;
+
+  const id = nextId++;
+  const record = { id, type: 'terminal', label: `Terminal ${id}`, status: 'picking', cwd: null };
+  tiles.push(record);
+  render();
+
+  const path = await window.orbit.pickDirectory();
+
+  // Tile may have been closed while the dialog was open.
+  if (!tiles.includes(record)) return;
+
+  if (!path) {
+    removeTile(record.id);
+    render();
+    return;
+  }
+
+  record.cwd = path;
+  if (!record.labelCustomized) record.label = basename(path);
+  record.status = 'starting';
+  render();
+  if (record.id === activeId) {
+    setActiveCwd(record.cwd);
+  }
+  persistSessions();
+
+  await spawnSession(record);
+  if (record.status === 'running') setActive(record.id);
+}
+
+function addGraph() {
+  if (tiles.length >= MAX_TILES || graphTileCount() >= MAX_GRAPH_TILES) return;
+
+  const id = nextId++;
+  const record = { id, type: 'graph', label: `Graph ${id}` };
+  tiles.push(record);
+  render();
+  persistSessions();
+  setActive(record.id);
+}
+
+async function restoreTerminal(saved) {
+  const record = {
+    id: nextId++,
+    type: 'terminal',
+    label: saved.label,
+    labelCustomized: true,
+    status: 'starting',
+    cwd: saved.cwd,
+    claudeSessionId: saved.claudeSessionId,
+  };
+  tiles.push(record);
+  render();
+
+  await spawnSession(record);
+}
+
+function restoreGraph() {
+  const id = nextId++;
+  const record = { id, type: 'graph', label: `Graph ${id}` };
+  tiles.push(record);
+  render();
+}
+
+export async function restoreSessions() {
+  const raw = (await window.orbit.getSessions()) || [];
+  // Old saved sessions predate the `type` field — default them to 'terminal'.
+  const saved = raw
+    .map((entry) => ({ type: 'terminal', ...entry }))
+    .filter((entry) => entry.type === 'graph' || entry.cwd);
+  if (!saved.length) return;
+
+  unrestored = saved.map((entry) =>
+    entry.type === 'graph'
+      ? { type: 'graph' }
+      : { type: 'terminal', cwd: entry.cwd, label: entry.label, claudeSessionId: entry.claudeSessionId }
+  );
+
+  // One at a time. Each entry leaves `unrestored` only as it becomes a live
+  // tile, so every write in between still covers the full set.
+  while (unrestored.length && tiles.length < MAX_TILES) {
+    const next = unrestored.shift();
+    if (next.type === 'graph') {
+      if (graphTileCount() >= MAX_GRAPH_TILES) continue; // drop, over the graph-specific cap
+      restoreGraph();
+    } else {
+      await restoreTerminal(next);
+    }
+  }
+
+  // Point the file tree once at the end instead of once per restored tile.
+  const firstReady = tiles.find((t) => t.type === 'graph' || t.status === 'running');
+  if (activeId === null && firstReady) setActive(firstReady.id);
+  persistSessions();
+}
+
+export function renderConsolePanel(container) {
+  container.innerHTML = '';
+  for (const session of sessions.values()) session.dispose();
+  sessions.clear();
+  for (const view of graphViews.values()) view.dispose();
+  graphViews.clear();
+  tileEls.clear();
+  tiles = [];
+  unrestored = [];
+  nextId = 1;
+  activeId = null;
+
+  if (usageIntervalId) clearInterval(usageIntervalId);
+  usageIntervalId = setInterval(refreshAllUsage, USAGE_POLL_MS);
+
+  // One subscription for the whole panel: a file touched by any pane pulses in
+  // every open graph tile (pulses aren't scoped per-pane in v1).
+  toolActivityUnsub?.();
+  toolActivityUnsub = window.orbit.onToolActivity((paths) => {
+    for (const view of graphViews.values()) view.pulse(paths);
+  });
+
+  const panel = document.createElement('div');
+  panel.className = 'console-panel-inner';
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'console-toolbar';
+
+  addTerminalBtn = document.createElement('button');
+  addTerminalBtn.className = 'add-tile-btn';
+  addTerminalBtn.textContent = '+ Add Terminal';
+  addTerminalBtn.addEventListener('click', addTerminal);
+
+  addGraphBtn = document.createElement('button');
+  addGraphBtn.className = 'add-tile-btn';
+  addGraphBtn.textContent = '+ Add Graph';
+  addGraphBtn.addEventListener('click', addGraph);
+
+  toolbar.appendChild(addTerminalBtn);
+  toolbar.appendChild(addGraphBtn);
+
+  gridEl = document.createElement('div');
+  gridEl.className = 'tile-grid';
+
+  panel.appendChild(toolbar);
+  panel.appendChild(gridEl);
+
+  const row = document.createElement('div');
+  row.className = 'console-panel-row';
+
+  const treeContainer = document.createElement('div');
+
+  row.appendChild(panel);
+  row.appendChild(treeContainer);
+  container.appendChild(row);
+
+  renderFileTreePanel(treeContainer);
+
+  render();
+}

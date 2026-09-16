@@ -44,7 +44,9 @@ html, body {
 
 /* Full-window 3D graph, mounted once and always live behind #app. Dead space
    in #app (panel padding/gaps) is pointer-events:none so clicks/drags reach
-   this layer; real controls re-enable pointer-events explicitly below. */
+   this layer; real controls and scroll containers re-enable pointer-events
+   explicitly below. Holding Alt (body.graph-interact) hands the whole window
+   to the graph. */
 #graph-backdrop {
   position: fixed;
   inset: 0;
@@ -59,6 +61,15 @@ html, body {
   height: 100%;
   width: 100%;
   pointer-events: none;
+}
+
+body.graph-interact {
+  cursor: grab;
+}
+
+body.graph-interact #app,
+body.graph-interact #app * {
+  pointer-events: none !important;
 }
 
 #nav-bar {
@@ -163,6 +174,7 @@ html, body {
 }
 
 .file-tree-root {
+  pointer-events: auto;
   flex: 1;
   overflow: auto;
   padding: 6px 0;
@@ -261,6 +273,7 @@ html, body {
 }
 
 .tile-grid {
+  pointer-events: auto;
   flex: 1;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -404,7 +417,7 @@ html, body {
 }
 
 .settings-panel-inner {
-  pointer-events: none;
+  pointer-events: auto;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -484,6 +497,12 @@ html, body {
   gap: 10px;
   color: var(--text-primary);
   font-size: 13px;
+}
+
+.settings-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 .opacity-row-label {

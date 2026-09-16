@@ -110,6 +110,7 @@ async function main() {
   });
   window.addEventListener('blur', () => {
     isFocused = false;
+    document.body.classList.remove('graph-interact');
     syncPlayback();
   });
   window.addEventListener('focus', () => {
@@ -117,6 +118,16 @@ async function main() {
     syncPlayback();
   });
   syncPlayback();
+
+  // Scroll containers swallow pointer input, so holding Alt routes every
+  // pointer event to the backdrop for pan/zoom/click. Capture phase so a
+  // focused terminal can't swallow the key first.
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Alt') document.body.classList.add('graph-interact');
+  }, true);
+  window.addEventListener('keyup', (e) => {
+    if (e.key === 'Alt') document.body.classList.remove('graph-interact');
+  }, true);
 
   showView('console');
 }

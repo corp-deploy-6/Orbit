@@ -124,5 +124,10 @@ export function renderSettingsPanel(
   reloadBtn.addEventListener('click', () => onReloadGraph?.());
   panel.appendChild(reloadBtn);
 
+  const hint = document.createElement('p');
+  hint.className = 'settings-hint';
+  hint.textContent = 'Hold Alt to pan, zoom and click the graph anywhere in the window.';
+  panel.appendChild(hint);
+
   container.appendChild(panel);
 }

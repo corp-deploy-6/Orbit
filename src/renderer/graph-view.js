@@ -177,6 +177,9 @@ export function createGraphView() {
         controls.autoRotate = true;
         controls.autoRotateSpeed = 0.5;
       });
+    // pause() may have landed while this load was awaiting; it only reaches the
+    // instance that existed at the time.
+    if (paused) graphInstance.pauseAnimation();
 
     resizeObserver = new ResizeObserver(() => {
       if (!graphInstance) return;

@@ -10,6 +10,7 @@ const DEFAULT_SETTINGS = {
   navOpacity: 1,
   consoleOpacity: 1,
   fileTreeOpacity: 1,
+  terminalOpacity: 1,
 };
 
 let cache = null;

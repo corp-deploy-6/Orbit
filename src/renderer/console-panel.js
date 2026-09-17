@@ -16,6 +16,7 @@ let activeId = null;
 let gridEl = null;
 let addTerminalBtn = null;
 let terminalTheme = null;
+let terminalOpacity = 1;
 // Saved sessions not yet turned into tiles: still queued mid-restore, or
 // skipped for a cap. Always persisted after the live tiles, so a
 // close/rename/add or a crash during restore never drops or reverts them.
@@ -49,6 +50,11 @@ function refreshAllUsage() {
 export function setTerminalTheme(theme) {
   terminalTheme = theme;
   for (const session of sessions.values()) session.setTheme(theme);
+}
+
+export function setTerminalOpacity(value) {
+  terminalOpacity = value;
+  for (const session of sessions.values()) session.setOpacity(value);
 }
 
 export function forceRedrawConsole() {
@@ -168,6 +174,7 @@ async function spawnSession(record) {
     id: record.id,
     cwd: record.cwd,
     theme: terminalTheme,
+    opacity: terminalOpacity,
     claudeSessionId: record.claudeSessionId,
   });
   sessions.set(record.id, session);

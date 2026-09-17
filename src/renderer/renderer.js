@@ -1,6 +1,12 @@
 import './styles.css';
 import { renderNavBar } from './nav-bar.js';
-import { renderConsolePanel, setTerminalTheme, forceRedrawConsole, restoreSessions } from './console-panel.js';
+import {
+  renderConsolePanel,
+  setTerminalTheme,
+  setTerminalOpacity,
+  forceRedrawConsole,
+  restoreSessions,
+} from './console-panel.js';
 import { renderSettingsPanel } from './settings-panel.js';
 import { createGraphView } from './graph-view.js';
 import { THEMES, applyTheme } from './themes/index.js';
@@ -11,6 +17,7 @@ const OPACITY_CONFIG = {
   nav: { cssVar: '--nav-opacity', settingsKey: 'navOpacity' },
   console: { cssVar: '--console-opacity', settingsKey: 'consoleOpacity' },
   fileTree: { cssVar: '--filetree-opacity', settingsKey: 'fileTreeOpacity' },
+  terminal: { cssVar: '--terminal-opacity', settingsKey: 'terminalOpacity' },
 };
 
 async function main() {
@@ -24,6 +31,7 @@ async function main() {
     nav: settings?.navOpacity ?? 1,
     console: settings?.consoleOpacity ?? 1,
     fileTree: settings?.fileTreeOpacity ?? 1,
+    terminal: settings?.terminalOpacity ?? 1,
   };
   for (const key of Object.keys(OPACITY_CONFIG)) {
     document.documentElement.style.setProperty(OPACITY_CONFIG[key].cssVar, opacity[key]);
@@ -40,6 +48,7 @@ async function main() {
   backdrop.attach(graphBackdropEl);
 
   renderConsolePanel(consolePanelEl);
+  setTerminalOpacity(opacity.terminal);
   setTerminalTheme(THEMES[currentThemeId].terminal);
   restoreSessions();
 
@@ -48,6 +57,9 @@ async function main() {
   async function onOpacityChange(key, value) {
     opacity[key] = value;
     document.documentElement.style.setProperty(OPACITY_CONFIG[key].cssVar, value);
+    // xterm paints its own background on canvas, so the CSS var alone can't
+    // reach it — push the alpha into every live terminal's theme too.
+    if (key === 'terminal') setTerminalOpacity(value);
     await window.orbit.setSetting(OPACITY_CONFIG[key].settingsKey, value);
   }
 

@@ -15,12 +15,11 @@ const SWATCH_TOKENS = [
 ];
 
 // key -> label shown next to each opacity slider. Order matches the panels
-// left-to-right in the app layout (nav, console, file tree), with the
-// terminal chat surface (inside each console tile) last.
+// left-to-right in the app layout (nav, console), with the terminal chat
+// surface (inside each console tile) last.
 const OPACITY_ROWS = [
   { key: 'nav', label: 'Nav Bar' },
   { key: 'console', label: 'Console' },
-  { key: 'fileTree', label: 'File Tree' },
   { key: 'terminal', label: 'Terminal' },
 ];
 

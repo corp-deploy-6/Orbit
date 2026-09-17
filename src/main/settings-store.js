@@ -9,7 +9,6 @@ const DEFAULT_SETTINGS = {
   theme: 'orbit-default',
   navOpacity: 1,
   consoleOpacity: 1,
-  fileTreeOpacity: 1,
   terminalOpacity: 1,
 };
 

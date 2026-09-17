@@ -30,7 +30,6 @@
   /* Per-panel backdrop opacity, default 1 = today's fully opaque look. */
   --nav-opacity: 1;
   --console-opacity: 1;
-  --filetree-opacity: 1;
   --terminal-opacity: 1;
 }
 
@@ -136,12 +135,6 @@ body.graph-interact #app * {
   display: none;
 }
 
-.console-panel-row {
-  display: flex;
-  height: 100%;
-  width: 100%;
-}
-
 .console-panel-inner {
   display: flex;
   flex-direction: column;
@@ -151,100 +144,6 @@ body.graph-interact #app * {
   padding: 12px;
   gap: 12px;
   background: rgba(var(--bg-base-rgb), var(--console-opacity));
-}
-
-.file-tree-panel {
-  width: 240px;
-  flex-shrink: 0;
-  border-left: 1px solid var(--border-subtle);
-  background: rgba(var(--bg-sunken-rgb), var(--filetree-opacity));
-  overflow: auto;
-  display: flex;
-  flex-direction: column;
-}
-
-.file-tree-header {
-  flex-shrink: 0;
-  padding: 10px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.file-tree-root {
-  pointer-events: auto;
-  flex: 1;
-  overflow: auto;
-  padding: 6px 0;
-}
-
-.tree-row {
-  pointer-events: auto;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding-top: 3px;
-  padding-bottom: 3px;
-  padding-right: 8px;
-  font-size: 12px;
-  color: var(--text-primary);
-  white-space: nowrap;
-}
-
-.tree-row-dir {
-  cursor: pointer;
-}
-
-.tree-row-dir:hover {
-  background: var(--bg-raised);
-}
-
-.tree-caret {
-  flex-shrink: 0;
-  width: 12px;
-  font-size: 10px;
-  color: var(--text-secondary);
-  text-align: center;
-}
-
-.tree-caret-none {
-  visibility: hidden;
-}
-
-.tree-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tree-row-invalid .tree-label {
-  color: var(--text-muted);
-  text-decoration: line-through;
-}
-
-.tree-error-text {
-  color: var(--danger);
-  font-size: 11px;
-  margin-left: 6px;
-}
-
-.tree-root-error {
-  padding: 10px 12px;
-  margin-left: 0;
-}
-
-.tree-empty-text {
-  padding: 10px 12px;
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-@media (max-width: 700px) {
-  .file-tree-panel {
-    display: none;
-  }
 }
 
 .console-toolbar {

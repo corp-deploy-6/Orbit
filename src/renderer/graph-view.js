@@ -4,7 +4,7 @@
 // first frame. renderer.js owns exactly one instance for the app's lifetime,
 // mounted once into #graph-backdrop and never recreated.
 // v1 scope: Orbit's own repo only, manual reload (no file watcher), hover
-// tooltip only (no click-to-open-in-file-tree).
+// tooltip only (no click-to-open).
 
 const KIND_COLOR_VARS = {
   file: '--accent',

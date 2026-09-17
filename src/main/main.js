@@ -4,7 +4,6 @@ import started from 'electron-squirrel-startup';
 import { registerPtyHandlers, killAllSessions } from './pty-manager.js';
 import { registerDialogHandlers } from './dialog-manager.js';
 import { registerSettingsHandlers } from './settings-store.js';
-import { registerFsTreeHandlers, unwatchAllDirs } from './fs-tree-manager.js';
 import { registerSessionHandlers } from './session-store.js';
 import { registerUsageHandlers } from './usage-tracker.js';
 import { registerShellHandlers } from './shell-manager.js';
@@ -26,21 +25,19 @@ const createWindow = () => {
   });
   const { webContents } = mainWindow;
 
-  // fs watchers and ptys only serve the loaded page; drop them on reload (e.g.
-  // a Vite full reload in dev) or renderer crash so they don't pile up. The
-  // renderer starts from empty state after either event and can't reattach to
-  // a pty it no longer knows the id of, so leaving old ptys running just
+  // ptys and tool watches only serve the loaded page; drop them on reload
+  // (e.g. a Vite full reload in dev) or renderer crash so they don't pile up.
+  // The renderer starts from empty state after either event and can't reattach
+  // to a pty it no longer knows the id of, so leaving old ptys running just
   // orphans them (worse, restored sessions then spawn a second claude in the
-  // same folder). Kill them alongside the fs watchers.
+  // same folder).
   webContents.on('did-start-navigation', ({ isMainFrame, isSameDocument }) => {
     if (isMainFrame && !isSameDocument) {
-      unwatchAllDirs();
       killAllSessions();
       stopAllToolWatches();
     }
   });
   webContents.on('render-process-gone', () => {
-    unwatchAllDirs();
     killAllSessions();
     stopAllToolWatches();
   });
@@ -68,7 +65,6 @@ app.whenReady().then(() => {
   registerPtyHandlers();
   registerDialogHandlers();
   registerSettingsHandlers();
-  registerFsTreeHandlers();
   registerSessionHandlers();
   registerUsageHandlers();
   registerShellHandlers();
@@ -84,7 +80,6 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   killAllSessions();
-  unwatchAllDirs();
   stopAllToolWatches();
   if (process.platform !== 'darwin') {
     app.quit();

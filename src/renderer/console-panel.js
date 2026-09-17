@@ -254,17 +254,33 @@ export async function addTerminal(anchor) {
   // Active immediately on creation, not just once the pty is running —
   // otherwise the new tile has no accent ring and forceRedrawConsole()
   // keeps focusing the previously-active session until the user clicks in.
+  // If creation doesn't pan out (picker cancelled, closed mid-pick, or the
+  // spawn fails), restore whichever tile was active before rather than
+  // stranding the user with nothing focused.
+  const previousActiveId = activeId;
   activeId = record.id;
   render();
+
+  // Only restores if nothing else has claimed activeId in the meantime (the
+  // user clicking into a different tile while the picker was open, or while
+  // the pty was spawning, always wins).
+  function restorePreviousActive() {
+    if (activeId !== null && activeId !== record.id) return;
+    activeId = tiles.some((t) => t.id === previousActiveId) ? previousActiveId : null;
+    render();
+  }
 
   const path = await window.orbit.pickDirectory();
 
   // Tile may have been closed while the dialog was open.
-  if (!tiles.includes(record)) return;
+  if (!tiles.includes(record)) {
+    restorePreviousActive();
+    return;
+  }
 
   if (!path) {
     removeTile(record.id);
-    render();
+    restorePreviousActive();
     return;
   }
 
@@ -275,7 +291,11 @@ export async function addTerminal(anchor) {
   persistSessions();
 
   await spawnSession(record);
-  if (record.status === 'running') refreshUsage(record);
+  if (record.status === 'running') {
+    refreshUsage(record);
+  } else if (record.status === 'failed') {
+    restorePreviousActive();
+  }
 }
 
 async function restoreTerminal(saved) {

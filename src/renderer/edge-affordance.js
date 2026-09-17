@@ -4,11 +4,14 @@
 //
 // Four thin absolutely-positioned strips sit inside a pointer-events:none
 // wrapper, so only the strips (and the shared plus button) capture pointer
-// input — the tile's header/body, including xterm's own mouse handling in
-// .terminal-mount, are never intercepted. Top/bottom strips run full width;
-// left/right strips are inset top/bottom by the strip thickness, so every
-// point on the tile border belongs to exactly one zone by construction —
-// corners never need runtime disambiguation.
+// input. The strips themselves live entirely inside the gutter reserved by
+// .tile's padding (--edge-zone-size, styles.css) — real tile content (the
+// header's controls, xterm's own mouse handling in .terminal-mount) is laid
+// out inside that padding and never sits under a strip, so it's never
+// intercepted. Top/bottom strips run full width; left/right strips are inset
+// top/bottom by the strip thickness, so every point on the tile border
+// belongs to exactly one zone by construction — corners never need runtime
+// disambiguation.
 
 const SIDES = ['top', 'right', 'bottom', 'left'];
 const HIDE_DELAY_MS = 60;

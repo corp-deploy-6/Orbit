@@ -20,6 +20,11 @@
   --focus-ring: #f0b95c;
   --danger: #c2624a;
 
+  /* Thickness of each tile's edge-affordance hit-zone strip — also reserved
+     as padding on .tile so the strips have empty space to occupy instead of
+     overlapping the header or terminal body. */
+  --edge-zone-size: 10px;
+
   /* rgb-triple twins of the panel colors above, used by rgba() opacity math.
      Fallback values only — themes/*.js sets the real ones per theme. */
   --bg-base-rgb: 21, 19, 15;
@@ -158,6 +163,10 @@ body.graph-interact #app * {
   align-content: start;
 }
 
+.tile-grid[hidden] {
+  display: none;
+}
+
 .tile-grid-empty {
   pointer-events: auto;
   flex: 1;
@@ -193,6 +202,10 @@ body.graph-interact #app * {
   flex-direction: column;
   background: rgba(var(--panel-surface-rgb), var(--console-opacity));
   overflow: hidden;
+  /* Reserves a gutter for the edge-affordance strips (matches --edge-zone-size)
+     so the zones have empty space to occupy instead of overlapping real tile
+     content (header controls, xterm viewport) — see .edge-zone below. */
+  padding: var(--edge-zone-size);
 }
 
 .tile.active {
@@ -200,8 +213,9 @@ body.graph-interact #app * {
 }
 
 /* Edge affordance: a pointer-events:none overlay so only the strips/button
-   below (each explicitly pointer-events:auto) can capture input — the tile
-   header and xterm body are never intercepted. */
+   below (each explicitly pointer-events:auto) can capture input. The strips
+   themselves live entirely inside .tile's padding gutter (never over the
+   header or the terminal body), so they can never intercept content input. */
 .edge-affordance {
   position: absolute;
   inset: 0;
@@ -218,7 +232,7 @@ body.graph-interact #app * {
 .edge-zone-bottom {
   left: 0;
   right: 0;
-  height: 10px;
+  height: var(--edge-zone-size);
 }
 
 .edge-zone-top {
@@ -231,9 +245,9 @@ body.graph-interact #app * {
 
 .edge-zone-left,
 .edge-zone-right {
-  top: 10px;
-  bottom: 10px;
-  width: 10px;
+  top: var(--edge-zone-size);
+  bottom: var(--edge-zone-size);
+  width: var(--edge-zone-size);
 }
 
 .edge-zone-left {

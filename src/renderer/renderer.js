@@ -16,7 +16,6 @@ import { THEMES, applyTheme } from './themes/index.js';
 const OPACITY_CONFIG = {
   nav: { cssVar: '--nav-opacity', settingsKey: 'navOpacity' },
   console: { cssVar: '--console-opacity', settingsKey: 'consoleOpacity' },
-  fileTree: { cssVar: '--filetree-opacity', settingsKey: 'fileTreeOpacity' },
   terminal: { cssVar: '--terminal-opacity', settingsKey: 'terminalOpacity' },
 };
 
@@ -30,7 +29,6 @@ async function main() {
   const opacity = {
     nav: settings?.navOpacity ?? 1,
     console: settings?.consoleOpacity ?? 1,
-    fileTree: settings?.fileTreeOpacity ?? 1,
     terminal: settings?.terminalOpacity ?? 1,
   };
   for (const key of Object.keys(OPACITY_CONFIG)) {

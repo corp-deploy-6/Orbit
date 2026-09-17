@@ -5,7 +5,6 @@
 
 import { createTileElement, updateTileHeader, renderBody, setUsageBadge } from './tile-chrome.js';
 import { createTerminalSession } from './terminal-view.js';
-import { renderFileTreePanel, setActiveCwd } from './file-tree-panel.js';
 
 const MAX_TILES = 6;
 const USAGE_POLL_MS = 15000;
@@ -104,14 +103,11 @@ function removeTile(id) {
   }
 }
 
-// Re-pointing the file tree resets its expanded folders, so only do it when
-// the active tile actually changes (not on every click into the same one).
 function setActive(id) {
   if (activeId === id) return;
   activeId = id;
   render();
   const record = tiles.find((t) => t.id === id);
-  setActiveCwd(record?.cwd ?? null);
   if (record) refreshUsage(record);
 }
 
@@ -125,13 +121,9 @@ const handlers = {
     }
   },
   onClose: (id) => {
-    const wasActive = activeId === id;
     removeTile(id);
     persistSessions();
     render();
-    if (wasActive) {
-      setActiveCwd(null);
-    }
   },
   onFocus: setActive,
 };
@@ -242,9 +234,6 @@ async function addTerminal() {
   if (!record.labelCustomized) record.label = basename(path);
   record.status = 'starting';
   render();
-  if (record.id === activeId) {
-    setActiveCwd(record.cwd);
-  }
   persistSessions();
 
   await spawnSession(record);
@@ -289,7 +278,6 @@ export async function restoreSessions() {
     await restoreTerminal(unrestored.shift());
   }
 
-  // Point the file tree once at the end instead of once per restored tile.
   const firstReady = tiles.find((t) => t.status === 'running');
   if (activeId === null && firstReady) setActive(firstReady.id);
   persistSessions();
@@ -327,16 +315,7 @@ export function renderConsolePanel(container) {
   panel.appendChild(toolbar);
   panel.appendChild(gridEl);
 
-  const row = document.createElement('div');
-  row.className = 'console-panel-row';
-
-  const treeContainer = document.createElement('div');
-
-  row.appendChild(panel);
-  row.appendChild(treeContainer);
-  container.appendChild(row);
-
-  renderFileTreePanel(treeContainer);
+  container.appendChild(panel);
 
   render();
 }

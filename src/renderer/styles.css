@@ -387,6 +387,16 @@ body.graph-interact #app * {
   scrollbar-width: none;
 }
 
+/* xterm.css paints .xterm-viewport a solid #000 and puts the theme background
+   on the scrollable element nested inside it, so an alpha in the theme colour
+   only ever reveals that black — the layer the glyphs sit on stayed opaque.
+   Clearing the viewport lets --terminal-opacity actually govern what shows
+   through behind the text. Needs .xterm in the selector to outrank
+   `.xterm .xterm-viewport`, since xterm.css is imported after this file. */
+.terminal-mount .xterm .xterm-viewport {
+  background-color: transparent;
+}
+
 .terminal-mount .xterm-viewport::-webkit-scrollbar {
   width: 0;
   display: none;

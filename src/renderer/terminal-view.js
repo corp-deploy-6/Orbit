@@ -41,12 +41,31 @@ function handleLinkClick(event, uri) {
   window.orbit.confirmOpenLink(uri);
 }
 
-export function createTerminalSession({ id, cwd, theme, claudeSessionId }) {
+// xterm paints its background onto its own canvas, so the panel's CSS
+// opacity var can't reach it. Instead the background colour itself carries
+// the alpha, which xterm only honours with allowTransparency on.
+function themeWithAlpha(theme, alpha) {
+  if (!theme) return theme;
+  const bg = theme.background;
+  if (alpha >= 1 || typeof bg !== 'string') return theme;
+  const hex = bg.trim().replace('#', '');
+  if (!/^[0-9a-fA-F]{6}$/.test(hex)) return theme;
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  return { ...theme, background: `rgba(${r}, ${g}, ${b}, ${alpha})` };
+}
+
+export function createTerminalSession({ id, cwd, theme, opacity = 1, claudeSessionId }) {
+  let currentTheme = theme;
+  let currentOpacity = opacity;
+
   const term = new Terminal({
     convertEol: true,
     fontSize: 13,
     cursorBlink: true,
-    theme,
+    allowTransparency: true,
+    theme: themeWithAlpha(theme, opacity),
   });
   const fitAddon = new FitAddon();
   term.loadAddon(fitAddon);
@@ -118,7 +137,14 @@ export function createTerminalSession({ id, cwd, theme, claudeSessionId }) {
     },
 
     setTheme(nextTheme) {
-      term.options.theme = nextTheme;
+      currentTheme = nextTheme;
+      term.options.theme = themeWithAlpha(currentTheme, currentOpacity);
+      term.refresh(0, term.rows - 1);
+    },
+
+    setOpacity(nextOpacity) {
+      currentOpacity = nextOpacity;
+      term.options.theme = themeWithAlpha(currentTheme, currentOpacity);
       term.refresh(0, term.rows - 1);
     },
 

@@ -31,6 +31,7 @@
   --nav-opacity: 1;
   --console-opacity: 1;
   --filetree-opacity: 1;
+  --terminal-opacity: 1;
 }
 
 html, body {
@@ -367,7 +368,7 @@ body.graph-interact #app * {
   display: block;
   overflow: hidden;
   padding: 4px 6px;
-  background: var(--bg-sunken);
+  background: rgba(var(--bg-sunken-rgb), var(--terminal-opacity));
 }
 
 .terminal-mount {

@@ -146,32 +146,6 @@ body.graph-interact #app * {
   background: rgba(var(--bg-base-rgb), var(--console-opacity));
 }
 
-.console-toolbar {
-  display: flex;
-  flex-shrink: 0;
-  gap: 8px;
-}
-
-.add-tile-btn {
-  pointer-events: auto;
-  background: rgba(var(--panel-header-rgb), var(--console-opacity));
-  color: var(--text-primary);
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.add-tile-btn:hover:not(:disabled) {
-  background: var(--bg-raised);
-}
-
-.add-tile-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
 .tile-grid {
   pointer-events: auto;
   flex: 1;

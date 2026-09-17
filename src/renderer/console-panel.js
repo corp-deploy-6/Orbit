@@ -13,7 +13,6 @@ let tiles = [];
 let nextId = 1;
 let activeId = null;
 let gridEl = null;
-let addTerminalBtn = null;
 let terminalTheme = null;
 let terminalOpacity = 1;
 // Saved sessions not yet turned into tiles: still queued mid-restore, or
@@ -145,8 +144,6 @@ function render() {
       renderBody(entry, tile);
     }
   }
-
-  addTerminalBtn.disabled = tiles.length >= MAX_TILES;
 }
 
 async function spawnSession(record) {
@@ -211,7 +208,7 @@ async function spawnSession(record) {
   });
 }
 
-async function addTerminal() {
+export async function addTerminal() {
   if (tiles.length >= MAX_TILES) return;
 
   const id = nextId++;
@@ -299,20 +296,9 @@ export function renderConsolePanel(container) {
   const panel = document.createElement('div');
   panel.className = 'console-panel-inner';
 
-  const toolbar = document.createElement('div');
-  toolbar.className = 'console-toolbar';
-
-  addTerminalBtn = document.createElement('button');
-  addTerminalBtn.className = 'add-tile-btn';
-  addTerminalBtn.textContent = '+ Add Terminal';
-  addTerminalBtn.addEventListener('click', addTerminal);
-
-  toolbar.appendChild(addTerminalBtn);
-
   gridEl = document.createElement('div');
   gridEl.className = 'tile-grid';
 
-  panel.appendChild(toolbar);
   panel.appendChild(gridEl);
 
   container.appendChild(panel);

@@ -9,7 +9,7 @@ Load `right-size` before implementing and `code-discipline` before writing or ed
 
 ## Before starting
 
-Check for `.claude/plans/<slug>.md` for this work's slug. If it exists, read it and follow it. If it doesn't, this is either a trivial change (fine, just do it) or planning was skipped when it shouldn't have been -- flag that back to the user.
+Check for `.claude/plans/<slug>.md` for this work's slug. If it exists, read it and follow it. If it doesn't, this is either a trivial change (fine, just do it) or planning was skipped when it shouldn't have been -- flag that back to the user. If no slug was passed at all, don't go hunting for a plan file -- treat the work as unplanned and say so when reporting back.
 
 ## Core rules
 

@@ -4,7 +4,7 @@ Personal Agentic OS. Hobby-scale, not enterprise. Optimize for speed + working c
 
 ## Agent
 
-Orbit runs on one generalist agent, `Orbit` (`.claude/agents/orbit.md`). It has no built-in specialty -- each phase's judgment comes from the skill it loads (`plan-feature`, `implement-plan`, `review-changes`, `style-ui`). Invoke it with the Agent tool once per phase, in a fresh session each time, so a planning session's context/bias never leaks into implementation or review. Never ask it to do two phases in one session.
+Orbit runs on one generalist agent, `Orbit` (`.claude/agents/orbit.md`), on Sonnet 5 at medium effort. It has no built-in specialty -- each phase's judgment comes from the skill it loads (`plan-feature`, `implement-plan`, `review-changes`, `style-ui`). Invoke it with the Agent tool once per phase, in a fresh session each time, so a planning session's context/bias never leaks into implementation or review. Never ask it to do two phases in one session.
 
 Default flow: spawn Orbit to plan -> user approves -> spawn Orbit fresh to implement -> spawn Orbit fresh to review -> spawn Orbit fresh to style if there's a visual component. Skip planning for one-file/low-risk changes, skip review for throwaway/experimental scratch work.
 

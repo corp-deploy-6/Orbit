@@ -19,7 +19,7 @@ Load `right-size` before reviewing. Load `ears-criteria` when checking or writin
 
 ## Reporting findings
 
-One entry per finding: what's wrong, where (file:line), the concrete scenario that breaks it, and the fix direction. Most severe first. If nothing survives verification, say so -- an empty findings list is a valid, useful result.
+One entry per finding: what's wrong, where (file:line), the concrete scenario that breaks it, and the fix direction. Most severe first -- don't bury a crash-causing bug under ten style comments. If nothing survives verification, say so -- an empty findings list is a valid, useful result.
 
 - **Every finding needs a concrete failure scenario.** "This could be cleaner" isn't one. "Given input X, this throws/returns wrong value Y" is. Mark it PLAUSIBLE, not CONFIRMED, if you can't construct the triggering scenario.
 - **No praise, no scope creep.** Don't compliment good code or suggest improvements outside the diff being reviewed.

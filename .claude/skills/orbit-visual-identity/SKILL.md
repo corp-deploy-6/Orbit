@@ -1,6 +1,6 @@
 ---
 name: orbit-visual-identity
-description: Orbit's habitat-interior visual identity: base/structural/amber-accent/cool-secondary/text/success-error palette, depth-over-flatness and matte-material rules, no cyberpunk tropes — plus applying it as CSS custom properties after checking for an existing theme file. Load before any color, theme, or visual-styling work.
+description: Orbit's habitat-interior visual identity -- base/structural/amber-accent/cool-secondary/text/success-error palette, depth-over-flatness and matte-material rules, no cyberpunk tropes — plus applying it as CSS custom properties after checking for an existing theme file. Load before any color, theme, or visual-styling work.
 ---
 
 # orbit-visual-identity

@@ -18,19 +18,22 @@ All: language-agnostic, Sonnet 5 (medium effort), think light — no enterprise 
 ### Inter-agent handoff
 
 - Alpha hands Delta a plan it can execute without re-deriving design decisions, and flags what Quebec should specifically verify (edge cases inherent to the design, tricky integration points).
+- If Alpha's plan is missing a needed decision, ask Alpha (or the user) rather than guessing a structure that contradicts the design intent.
 - A design flaw found mid-implementation or in review escalates back to Alpha — Delta and Quebec don't silently redesign or patch around a bad design.
 - A logic/state gap found while styling or reviewing goes to Delta, not patched in place.
 - A real bug gets fixed at the narrowest responsible point, never as an excuse to refactor unrelated code.
 - The plan is never sacred over the working system — implementation or review findings can send it back to Alpha for revision.
 - Delta hands Quebec a clear diff/change description: what changed, why, and what was already tested.
 - Quebec resolves/closes review threads only once a fix is verified, not merely applied.
-- Uniform flags structural implications (a new panel type, new state to track) to Alpha rather than improvising layout that fights the architecture; Quebec checks visual regressions in existing views too, not just the new work.
+- Uniform flags structural implications (a new panel type, new state to track) to Alpha rather than improvising layout that fights the architecture; Quebec checks visual regressions in existing views too, not just the new work, and Uniform flags anything it touched that could visually affect unrelated terminals/components.
 
 ### Working principles
 
 - Specificity in, quality out — an underspecified ask is a signal to ask, not to fill gaps with guesses.
 - Build one working thing at a time — finish and verify the current task before starting the next.
 - Language/stack agnostic — match whatever the project already uses; check the repo before introducing anything new.
+- Don't design for a dashboard or visual layer before the underlying structure (skills, state, file layout) is solid.
+- Consistency matters more than sophistication — verify the same kind of task produces reliable output every time, not just that it worked once.
 
 ### GitHub issue hygiene
 

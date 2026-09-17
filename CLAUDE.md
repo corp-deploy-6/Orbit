@@ -2,42 +2,19 @@
 
 Personal Agentic OS. Hobby-scale, not enterprise. Optimize for speed + working code over ceremony.
 
-## Agents
+## Agent
 
-Subagents live in `.claude/agents/`. Use Agent tool with matching `subagent_type`.
+Orbit runs on one generalist agent, `Orbit` (`.claude/agents/orbit.md`). It has no built-in specialty -- each phase's judgment comes from the skill it loads (`plan-feature`, `implement-plan`, `review-changes`, `style-ui`). Invoke it with the Agent tool once per phase, in a fresh session each time, so a planning session's context/bias never leaks into implementation or review. Never ask it to do two phases in one session.
 
-- **Alpha** — architect. Design, planning, file layout, tradeoffs. Invoke before multi-step/multi-file work starts. Produces a plan; never writes implementation code.
-- **Delta** — developer. Implements a plan (Alpha's or a trivial direct request). Writes/edits code, fixes bugs. Follows the plan; flags it if the plan breaks down mid-implementation rather than silently redesigning.
-- **Quebec** — QA. Reviews Delta's changes against the plan/requirement. Finds real bugs with concrete failure scenarios, ranked by severity. No praise, no scope creep.
-- **Uniform** — UI/visual design. Component styling, layout, color/theme, visual polish on the CLI panel. Not for app logic/state (that's Delta).
+Default flow: spawn Orbit to plan -> user approves -> spawn Orbit fresh to implement -> spawn Orbit fresh to review -> spawn Orbit fresh to style if there's a visual component. Skip planning for one-file/low-risk changes, skip review for throwaway/experimental scratch work.
 
-Default flow for non-trivial work: **Alpha plans → user approves → Delta implements → Quebec reviews**. Skip Alpha for one-file/low-risk changes. Skip Quebec for throwaway/experimental scratch work.
+Pick a short-name slug up front (the one that becomes the branch name) and pass it to every spawn. The planning session writes the plan to `.claude/plans/<slug>.md` and commits it on the feature branch, so it survives even if a later phase runs in a separate worktree; implementing and reviewing read it from there. Whichever of implementing or reviewing finishes the work last deletes that file (commit the deletion) before the branch merges -- it's handoff state, not project history.
 
-All: language-agnostic, Sonnet 5 (medium effort), think light — no enterprise patterns, no speculative abstraction, no over-engineering for a solo hobby project.
-
-### Inter-agent handoff
-
-- Alpha hands Delta a plan it can execute without re-deriving design decisions, and flags what Quebec should specifically verify (edge cases inherent to the design, tricky integration points).
-- If Alpha's plan is missing a needed decision, ask Alpha (or the user) rather than guessing a structure that contradicts the design intent.
-- A design flaw found mid-implementation or in review escalates back to Alpha — Delta and Quebec don't silently redesign or patch around a bad design.
-- A logic/state gap found while styling or reviewing goes to Delta, not patched in place.
-- A real bug gets fixed at the narrowest responsible point, never as an excuse to refactor unrelated code.
-- The plan is never sacred over the working system — implementation or review findings can send it back to Alpha for revision.
-- Delta hands Quebec a clear diff/change description: what changed, why, and what was already tested.
-- Quebec resolves/closes review threads only once a fix is verified, not merely applied.
-- Uniform flags structural implications (a new panel type, new state to track) to Alpha rather than improvising layout that fights the architecture; Quebec checks visual regressions in existing views too, not just the new work, and Uniform flags anything it touched that could visually affect unrelated terminals/components.
-
-### Working principles
-
-- Specificity in, quality out — an underspecified ask is a signal to ask, not to fill gaps with guesses.
-- Build one working thing at a time — finish and verify the current task before starting the next.
-- Language/stack agnostic — match whatever the project already uses; check the repo before introducing anything new.
-- Don't design for a dashboard or visual layer before the underlying structure (skills, state, file layout) is solid.
-- Consistency matters more than sophistication — verify the same kind of task produces reliable output every time, not just that it worked once.
+Match whatever stack the project already uses; an underspecified ask is a signal to ask, not to guess. Finish and verify one thing before starting the next.
 
 ### GitHub issue hygiene
 
-When Alpha, Delta, Quebec, or Uniform works against a GitHub issue, they must keep that issue updated as they go — not just report back to the user in chat:
+When Orbit works against a GitHub issue, it must keep that issue updated as it goes — not just report back to the user in chat:
 
 - **Starting work** — comment that work has begun (brief: what/why).
 - **Key findings/decisions** — comment anything a human picking up the issue later would need (root cause found, plan chosen, blocker hit).

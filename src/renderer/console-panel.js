@@ -168,28 +168,20 @@ function nextMountedEl(tileId) {
   return null;
 }
 
-// Recursively places tile elements (existing DOM nodes, reused as-is) into
-// nested .split-node/.split-pane wrappers per the split tree. Only called
-// when splitRoot's identity has actually changed (see render()) — never on
-// an ordinary cosmetic render — so a focus change never reparents a tile.
-function buildSplitDom(node) {
-  if (node.type === 'leaf') return tileEls.get(node.tileId).el;
-
+// Builds a .split-node (container + two panes + divider) for `node` with
+// nothing placed in its panes yet. Layout is always children[0]=paneA,
+// [1]=divider, [2]=paneB — patchSplitDom relies on that indexing.
+function createSplitShell(node) {
   const container = document.createElement('div');
   container.className = `split-node split-${node.direction}`;
 
-  const [childA, childB] = node.children;
   const sizes = node.sizes || [0.5, 0.5];
-
   const paneA = document.createElement('div');
   paneA.className = 'split-pane';
   paneA.style.flex = `${sizes[0]} 1 0%`;
-  paneA.appendChild(buildSplitDom(childA));
-
   const paneB = document.createElement('div');
   paneB.className = 'split-pane';
   paneB.style.flex = `${sizes[1]} 1 0%`;
-  paneB.appendChild(buildSplitDom(childB));
 
   const divider = document.createElement('div');
   divider.className = `split-divider split-divider-${node.direction}`;
@@ -198,18 +190,91 @@ function buildSplitDom(node) {
   container.appendChild(paneA);
   container.appendChild(divider);
   container.appendChild(paneB);
+  return { container, paneA, paneB };
+}
+
+// Builds a whole subtree from scratch, placing existing tile elements (reused
+// as-is) into nested wrappers. Only for the no-prior-DOM cases — the first
+// split render, and a wholesale foldSplitRoot() rebuild where old and new
+// trees share nothing to diff. Live add/close go through patchSplitDom.
+function buildSplitDom(node) {
+  if (node.type === 'leaf') return tileEls.get(node.tileId).el;
+  const { container, paneA, paneB } = createSplitShell(node);
+  paneA.appendChild(buildSplitDom(node.children[0]));
+  paneB.appendChild(buildSplitDom(node.children[1]));
   return container;
+}
+
+// Patches the live split DOM from oldNode's shape to newNode's, touching only
+// what changed (PR #72 review: rebuilding the whole tree detached every tile
+// and dropped xterm focus on tiles the edit never touched). split-layout.js
+// reuses untouched subtrees by reference, so `oldNode === newNode` means that
+// whole subtree's DOM is already correct and is left completely alone.
+//
+// The rule that keeps a move focus-safe: an already-attached element is only
+// ever appended into a parent that is itself already attached to the document
+// (a live-to-live move never detaches it), never into a fresh wrapper that
+// isn't attached yet. Brand-new tile elements have never been attached, so
+// they can go anywhere.
+//
+// `existingEl` is the live element currently representing oldNode, and
+// `parentPane` the attached element holding it. Handles exactly the shapes
+// insertNode/removeNode produce: same-shape split (recurse), a leaf wrapped
+// into a new split (insert), and a split collapsed into its surviving child
+// (close).
+function patchSplitDom(oldNode, newNode, existingEl, parentPane) {
+  if (oldNode === newNode) return;
+
+  if (newNode.type === 'split' && (newNode.children[0] === oldNode || newNode.children[1] === oldNode)) {
+    // insertNode: oldNode (a leaf) became one child of a new split beside a
+    // brand-new leaf. Attach the shell first, then move the old leaf in.
+    const oldIsFirst = newNode.children[0] === oldNode;
+    const { container, paneA, paneB } = createSplitShell(newNode);
+    const newLeaf = newNode.children[oldIsFirst ? 1 : 0];
+    (oldIsFirst ? paneB : paneA).appendChild(tileEls.get(newLeaf.tileId).el);
+    parentPane.insertBefore(container, existingEl);
+    (oldIsFirst ? paneA : paneB).moveBefore(existingEl, null);
+    return;
+  }
+
+  if (oldNode.type === 'split' && (oldNode.children[0] === newNode || oldNode.children[1] === newNode)) {
+    // removeNode: the surviving sibling is promoted one level up. It is
+    // already live under existingEl, so it's a live-to-live move.
+    const survivorPane = oldNode.children[0] === newNode ? existingEl.children[0] : existingEl.children[2];
+    parentPane.moveBefore(survivorPane.firstElementChild, existingEl);
+    existingEl.remove();
+    return;
+  }
+
+  // Same-shape split (an ancestor on the edited path): keep its wrappers,
+  // recurse into each side.
+  if (newNode.type === 'split' && oldNode.type === 'split' && oldNode.direction === newNode.direction) {
+    const [paneA, divider, paneB] = existingEl.children;
+    const sizes = newNode.sizes || [0.5, 0.5];
+    paneA.style.flex = `${sizes[0]} 1 0%`;
+    paneB.style.flex = `${sizes[1]} 1 0%`;
+    divider.splitNode = newNode;
+    patchSplitDom(oldNode.children[0], newNode.children[0], paneA.firstElementChild, paneA);
+    patchSplitDom(oldNode.children[1], newNode.children[1], paneB.firstElementChild, paneB);
+    return;
+  }
+
+  const fresh = buildSplitDom(newNode);
+  if (fresh !== existingEl) parentPane.replaceChildren(fresh);
 }
 
 // Drags the divider between two panes. Style writes (and therefore the
 // terminals' ResizeObserver-driven pty resize, terminal-view.js) are
 // throttled to one per animation frame rather than firing on every
 // pointermove, so a fast drag can't spam pty resize calls (#66 risk note).
+// The node lives on the element (`splitNode`) so patchSplitDom can repoint a
+// reused divider at the current node without stacking a second listener.
 function attachDividerDrag(dividerEl, containerEl, node, paneA, paneB) {
   const isRow = node.direction === 'row';
+  dividerEl.splitNode = node;
 
   function apply(ratio) {
-    node.sizes = [ratio, 1 - ratio];
+    dividerEl.splitNode.sizes = [ratio, 1 - ratio];
     paneA.style.flex = `${ratio} 1 0%`;
     paneB.style.flex = `${1 - ratio} 1 0%`;
   }
@@ -287,8 +352,11 @@ function render() {
   }
 
   if (layoutMode === 'split' && splitRoot !== lastRenderedSplitRoot) {
-    splitEl.innerHTML = '';
-    if (splitRoot) splitEl.appendChild(buildSplitDom(splitRoot));
+    if (splitRoot && lastRenderedSplitRoot) {
+      patchSplitDom(lastRenderedSplitRoot, splitRoot, splitEl.firstElementChild, splitEl);
+    } else {
+      splitEl.replaceChildren(...(splitRoot ? [buildSplitDom(splitRoot)] : []));
+    }
     lastRenderedSplitRoot = splitRoot;
   }
 }
@@ -484,6 +552,8 @@ export function setConsoleLayoutMode(mode) {
   if (mode !== 'grid' && mode !== 'split') return;
   if (mode === layoutMode) return;
   layoutMode = mode;
+  // Whatever split DOM was last rendered no longer matches where tiles live.
+  lastRenderedSplitRoot = undefined;
   if (mode === 'split') {
     foldSplitRoot();
   } else {

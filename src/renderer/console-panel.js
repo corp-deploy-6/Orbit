@@ -19,6 +19,7 @@ let gridEl = null;
 let splitEl = null;
 let emptyStateEl = null;
 let terminalTheme = null;
+let terminalFont = null;
 let terminalOpacity = 1;
 let layoutMode = 'grid';
 // The split tree is derived state over `tiles`, never persisted (see #66) —
@@ -59,9 +60,15 @@ function refreshAllUsage() {
   for (const tile of tiles) refreshUsage(tile);
 }
 
-export function setTerminalTheme(theme) {
+export function setTerminalTheme(theme, font = null) {
   terminalTheme = theme;
-  for (const session of sessions.values()) session.setTheme(theme);
+  terminalFont = font;
+  for (const session of sessions.values()) session.setTheme(theme, font);
+}
+
+export function closeActiveTile() {
+  if (activeId === null) return;
+  handlers.onClose(activeId);
 }
 
 export function setTerminalOpacity(value) {
@@ -378,6 +385,7 @@ async function spawnSession(record) {
     id: record.id,
     cwd: record.cwd,
     theme: terminalTheme,
+    font: terminalFont,
     opacity: terminalOpacity,
     claudeSessionId: record.claudeSessionId,
   });

@@ -1,5 +1,7 @@
 import './styles.css';
+import './dos-theme.css';
 import { renderNavBar } from './nav-bar.js';
+import { renderDosChrome, handleDosFKey } from './dos-chrome.js';
 import {
   renderConsolePanel,
   setTerminalTheme,
@@ -7,6 +9,8 @@ import {
   forceRedrawConsole,
   restoreSessions,
   setConsoleLayoutMode,
+  addTerminal,
+  closeActiveTile,
 } from './console-panel.js';
 import { renderSettingsPanel } from './settings-panel.js';
 import { createGraphView } from './graph-view.js';
@@ -41,6 +45,8 @@ async function main() {
   const navBarEl = document.getElementById('nav-bar');
   const consolePanelEl = document.getElementById('console-panel');
   const settingsPanelEl = document.getElementById('settings-panel');
+  const dosMenuBarEl = document.getElementById('dos-menubar');
+  const dosFKeyBarEl = document.getElementById('dos-fkeybar');
   const graphBackdropEl = document.getElementById('graph-backdrop');
 
   // Single graph backdrop instance for the app's lifetime — never recreated
@@ -50,7 +56,7 @@ async function main() {
 
   renderConsolePanel(consolePanelEl, { layoutMode: consoleLayoutMode });
   setTerminalOpacity(opacity.terminal);
-  setTerminalTheme(THEMES[currentThemeId].terminal);
+  setTerminalTheme(THEMES[currentThemeId].terminal, THEMES[currentThemeId].terminalFont);
   restoreSessions();
 
   window.orbit.onToolActivity((paths) => backdrop.pulse(paths));
@@ -67,7 +73,7 @@ async function main() {
   async function onSelectTheme(id) {
     currentThemeId = id;
     applyTheme(THEMES[id]);
-    setTerminalTheme(THEMES[id].terminal);
+    setTerminalTheme(THEMES[id].terminal, THEMES[id].terminalFont);
     renderSettingsPanel(settingsPanelEl, {
       currentThemeId,
       onSelectTheme,
@@ -96,12 +102,27 @@ async function main() {
     await window.orbit.setSetting('consoleLayoutMode', mode);
   }
 
+  let currentView = 'console';
+
+  function onDosAction(action) {
+    if (action === 'newTerminal') {
+      showView('console');
+      addTerminal();
+    } else if (action === 'closeTile' && currentView === 'console') {
+      closeActiveTile();
+    }
+  }
+
+  window.addEventListener('keydown', (e) => handleDosFKey(e, { onNavigate: showView, onAction: onDosAction }));
+
   // Backdrop stays live across console/settings view switches — it's a
   // full-window backdrop now, not tied to either view.
   function showView(view) {
     consolePanelEl.hidden = view !== 'console';
     settingsPanelEl.hidden = view !== 'settings';
     renderNavBar(navBarEl, { onNavigate: showView, active: view });
+    currentView = view;
+    renderDosChrome(dosMenuBarEl, dosFKeyBarEl, { active: view, onNavigate: showView, onAction: onDosAction });
     if (view === 'settings') {
       renderSettingsPanel(settingsPanelEl, {
         currentThemeId,

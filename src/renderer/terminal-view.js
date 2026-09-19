@@ -56,13 +56,17 @@ function themeWithAlpha(theme, alpha) {
   return { ...theme, background: `rgba(${r}, ${g}, ${b}, ${alpha})` };
 }
 
-export function createTerminalSession({ id, cwd, theme, opacity = 1, claudeSessionId }) {
+const DEFAULT_FONT_SIZE = 13;
+const DEFAULT_FONT_FAMILY = 'monospace';
+
+export function createTerminalSession({ id, cwd, theme, font, opacity = 1, claudeSessionId }) {
   let currentTheme = theme;
   let currentOpacity = opacity;
 
   const term = new Terminal({
     convertEol: true,
-    fontSize: 13,
+    fontSize: font?.fontSize ?? DEFAULT_FONT_SIZE,
+    ...(font?.fontFamily && { fontFamily: font.fontFamily }),
     cursorBlink: true,
     allowTransparency: true,
     theme: themeWithAlpha(theme, opacity),
@@ -152,10 +156,21 @@ export function createTerminalSession({ id, cwd, theme, opacity = 1, claudeSessi
       term.focus();
     },
 
-    setTheme(nextTheme) {
+    async setTheme(nextTheme, nextFont) {
       currentTheme = nextTheme;
       term.options.theme = themeWithAlpha(currentTheme, currentOpacity);
+      term.options.fontSize = nextFont?.fontSize ?? DEFAULT_FONT_SIZE;
+      term.options.fontFamily = nextFont?.fontFamily ?? DEFAULT_FONT_FAMILY;
+      if (nextFont?.fontFamily) {
+        try {
+          await document.fonts.load(`${term.options.fontSize}px ${nextFont.fontFamily}`);
+        } catch {
+          // font failed to load; the CSS fallback stack is used
+        }
+      }
+      if (disposed) return;
       term.refresh(0, term.rows - 1);
+      if (term.element?.isConnected) fitAndSyncPty();
     },
 
     setOpacity(nextOpacity) {

@@ -1,7 +1,9 @@
 // Terminal tile chrome: header (label + close) and a body container whose
 // contents depend on the terminal's status (picking/starting/running/failed).
 
-export function createTileElement(tile, { onRename, onClose, onFocus } = {}) {
+import { attachEdgeAffordance } from './edge-affordance.js';
+
+export function createTileElement(tile, { onRename, onClose, onFocus, onAddSide } = {}) {
   const el = document.createElement('div');
   el.className = 'tile';
   el.dataset.tileId = tile.id;
@@ -54,7 +56,16 @@ export function createTileElement(tile, { onRename, onClose, onFocus } = {}) {
   el.appendChild(header);
   el.appendChild(body);
 
-  const entry = { el, body, label, usageBadge, terminalMounted: false };
+  const affordance = attachEdgeAffordance(el, (side) => onAddSide?.(tile.id, side));
+
+  const entry = {
+    el,
+    body,
+    label,
+    usageBadge,
+    terminalMounted: false,
+    setAddDisabled: (disabled, title) => affordance.setDisabled(disabled, title),
+  };
   renderBody(entry, tile);
   return entry;
 }

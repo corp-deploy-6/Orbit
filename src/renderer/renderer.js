@@ -24,6 +24,10 @@ async function main() {
   let currentThemeId = settings?.theme || 'orbit-default';
   if (!THEMES[currentThemeId]) currentThemeId = 'orbit-default';
 
+  // Grid is the only mode PR1 implements; split is settings-only groundwork
+  // for PR2 (its radio option is present but disabled).
+  let consoleLayoutMode = settings?.consoleLayoutMode === 'split' ? 'split' : 'grid';
+
   applyTheme(THEMES[currentThemeId]);
 
   const opacity = {
@@ -71,9 +75,25 @@ async function main() {
       opacity,
       onOpacityChange,
       onReloadGraph: () => backdrop.reload(),
+      consoleLayoutMode,
+      onSelectConsoleLayoutMode,
     });
     backdrop.refreshTheme();
     await window.orbit.setSetting('theme', id);
+  }
+
+  async function onSelectConsoleLayoutMode(mode) {
+    consoleLayoutMode = mode;
+    renderSettingsPanel(settingsPanelEl, {
+      currentThemeId,
+      onSelectTheme,
+      opacity,
+      onOpacityChange,
+      onReloadGraph: () => backdrop.reload(),
+      consoleLayoutMode,
+      onSelectConsoleLayoutMode,
+    });
+    await window.orbit.setSetting('consoleLayoutMode', mode);
   }
 
   // Backdrop stays live across console/settings view switches — it's a
@@ -89,6 +109,8 @@ async function main() {
         opacity,
         onOpacityChange,
         onReloadGraph: () => backdrop.reload(),
+        consoleLayoutMode,
+        onSelectConsoleLayoutMode,
       });
     } else if (view === 'console') {
       forceRedrawConsole();

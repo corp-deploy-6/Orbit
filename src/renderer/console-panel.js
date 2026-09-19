@@ -13,7 +13,7 @@ let tiles = [];
 let nextId = 1;
 let activeId = null;
 let gridEl = null;
-let addTerminalBtn = null;
+let emptyStateEl = null;
 let terminalTheme = null;
 let terminalOpacity = 1;
 // Saved sessions not yet turned into tiles: still queued mid-restore, or
@@ -126,27 +126,53 @@ const handlers = {
     render();
   },
   onFocus: setActive,
+  onAddSide: (id, side) => {
+    addTerminal({ id, side: side === 'top' || side === 'left' ? 'before' : 'after' });
+  },
 };
 
+// DOM element of the next tile (in `tiles` order) that's already mounted, or
+// null if this tile is last. Lets a newly-created tile be inserted at its
+// correct grid position without ever touching an already-mounted sibling's
+// node.
+function nextMountedEl(tileId) {
+  const idx = tiles.findIndex((t) => t.id === tileId);
+  for (let i = idx + 1; i < tiles.length; i++) {
+    const entry = tileEls.get(tiles[i].id);
+    if (entry) return entry.el;
+  }
+  return null;
+}
+
 function render() {
+  // The edge affordance only exists on a tile, so it can't create the very
+  // first terminal after a fresh install or the last tile being closed —
+  // fall back to a plain centered button for that one case.
+  const isEmpty = tiles.length === 0;
+  emptyStateEl.hidden = !isEmpty;
+  gridEl.hidden = isEmpty;
+
+  const disabled = tiles.length >= MAX_TILES;
+  const disabledTitle = disabled ? `Maximum of ${MAX_TILES} terminals reached` : 'Add terminal';
+
   for (const tile of tiles) {
     let entry = tileEls.get(tile.id);
     if (!entry) {
       entry = createTileElement({ ...tile, active: tile.id === activeId }, handlers);
       tileEls.set(tile.id, entry);
-      // Only insert on first mount. Tiles are only ever appended (never
-      // reordered), so re-appending an already-placed node on every render
-      // (e.g. on the mousedown->onFocus render triggered by clicking into a
-      // tile to type) would detach and reattach it — appendChild always does
-      // remove-then-insert, which drops xterm's just-set input focus.
-      gridEl.appendChild(entry.el);
+      // Only insert on first mount, and at this tile's actual position among
+      // already-mounted siblings (insertBefore(node, null) appends). Tiles
+      // are never reordered or re-placed once mounted — re-appending an
+      // already-placed node on every render (e.g. on the mousedown->onFocus
+      // render triggered by clicking into a tile to type) would detach and
+      // reattach it, which drops xterm's just-set input focus.
+      gridEl.insertBefore(entry.el, nextMountedEl(tile.id));
     } else {
       updateTileHeader(entry, { ...tile, active: tile.id === activeId });
       renderBody(entry, tile);
     }
+    entry.setAddDisabled?.(disabled, disabledTitle);
   }
-
-  addTerminalBtn.disabled = tiles.length >= MAX_TILES;
 }
 
 async function spawnSession(record) {
@@ -211,22 +237,50 @@ async function spawnSession(record) {
   });
 }
 
-async function addTerminal() {
+// anchor: { id, side: 'before'|'after' } to insert next to an existing tile
+// (used by the edge-affordance plus button), or omitted to append at the end.
+export async function addTerminal(anchor) {
   if (tiles.length >= MAX_TILES) return;
 
   const id = nextId++;
   const record = { id, type: 'terminal', label: `Terminal ${id}`, status: 'picking', cwd: null };
-  tiles.push(record);
+
+  let insertIndex = tiles.length;
+  if (anchor) {
+    const anchorIndex = tiles.findIndex((t) => t.id === anchor.id);
+    if (anchorIndex !== -1) insertIndex = anchor.side === 'before' ? anchorIndex : anchorIndex + 1;
+  }
+  tiles.splice(insertIndex, 0, record);
+  // Active immediately on creation, not just once the pty is running —
+  // otherwise the new tile has no accent ring and forceRedrawConsole()
+  // keeps focusing the previously-active session until the user clicks in.
+  // If creation doesn't pan out (picker cancelled, closed mid-pick, or the
+  // spawn fails), restore whichever tile was active before rather than
+  // stranding the user with nothing focused.
+  const previousActiveId = activeId;
+  activeId = record.id;
   render();
+
+  // Only restores if nothing else has claimed activeId in the meantime (the
+  // user clicking into a different tile while the picker was open, or while
+  // the pty was spawning, always wins).
+  function restorePreviousActive() {
+    if (activeId !== null && activeId !== record.id) return;
+    activeId = tiles.some((t) => t.id === previousActiveId) ? previousActiveId : null;
+    render();
+  }
 
   const path = await window.orbit.pickDirectory();
 
   // Tile may have been closed while the dialog was open.
-  if (!tiles.includes(record)) return;
+  if (!tiles.includes(record)) {
+    restorePreviousActive();
+    return;
+  }
 
   if (!path) {
     removeTile(record.id);
-    render();
+    restorePreviousActive();
     return;
   }
 
@@ -237,7 +291,11 @@ async function addTerminal() {
   persistSessions();
 
   await spawnSession(record);
-  if (record.status === 'running') setActive(record.id);
+  if (record.status === 'running') {
+    refreshUsage(record);
+  } else if (record.status === 'failed') {
+    restorePreviousActive();
+  }
 }
 
 async function restoreTerminal(saved) {
@@ -299,21 +357,20 @@ export function renderConsolePanel(container) {
   const panel = document.createElement('div');
   panel.className = 'console-panel-inner';
 
-  const toolbar = document.createElement('div');
-  toolbar.className = 'console-toolbar';
-
-  addTerminalBtn = document.createElement('button');
-  addTerminalBtn.className = 'add-tile-btn';
-  addTerminalBtn.textContent = '+ Add Terminal';
-  addTerminalBtn.addEventListener('click', addTerminal);
-
-  toolbar.appendChild(addTerminalBtn);
-
   gridEl = document.createElement('div');
   gridEl.className = 'tile-grid';
 
-  panel.appendChild(toolbar);
+  emptyStateEl = document.createElement('div');
+  emptyStateEl.className = 'tile-grid-empty';
+  const emptyBtn = document.createElement('button');
+  emptyBtn.type = 'button';
+  emptyBtn.className = 'tile-grid-empty-btn';
+  emptyBtn.textContent = '+ Add Terminal';
+  emptyBtn.addEventListener('click', () => addTerminal());
+  emptyStateEl.appendChild(emptyBtn);
+
   panel.appendChild(gridEl);
+  panel.appendChild(emptyStateEl);
 
   container.appendChild(panel);
 

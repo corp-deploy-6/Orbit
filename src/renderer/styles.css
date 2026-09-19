@@ -20,6 +20,11 @@
   --focus-ring: #f0b95c;
   --danger: #c2624a;
 
+  /* Thickness of each tile's edge-affordance hit-zone strip — also reserved
+     as padding on .tile so the strips have empty space to occupy instead of
+     overlapping the header or terminal body. */
+  --edge-zone-size: 10px;
+
   /* rgb-triple twins of the panel colors above, used by rgba() opacity math.
      Fallback values only — themes/*.js sets the real ones per theme. */
   --bg-base-rgb: 21, 19, 15;
@@ -146,32 +151,6 @@ body.graph-interact #app * {
   background: rgba(var(--bg-base-rgb), var(--console-opacity));
 }
 
-.console-toolbar {
-  display: flex;
-  flex-shrink: 0;
-  gap: 8px;
-}
-
-.add-tile-btn {
-  pointer-events: auto;
-  background: rgba(var(--panel-header-rgb), var(--console-opacity));
-  color: var(--text-primary);
-  border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.add-tile-btn:hover:not(:disabled) {
-  background: var(--bg-raised);
-}
-
-.add-tile-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
 .tile-grid {
   pointer-events: auto;
   flex: 1;
@@ -184,16 +163,160 @@ body.graph-interact #app * {
   align-content: start;
 }
 
+.tile-grid[hidden] {
+  display: none;
+}
+
+.tile-grid-empty {
+  pointer-events: auto;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tile-grid-empty[hidden] {
+  display: none;
+}
+
+.tile-grid-empty-btn {
+  pointer-events: auto;
+  background: var(--bg-raised);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tile-grid-empty-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
 .tile {
+  position: relative;
   pointer-events: auto;
   display: flex;
   flex-direction: column;
   background: rgba(var(--panel-surface-rgb), var(--console-opacity));
   overflow: hidden;
+  /* Reserves a gutter for the edge-affordance strips (matches --edge-zone-size)
+     so the zones have empty space to occupy instead of overlapping real tile
+     content (header controls, xterm viewport) — see .edge-zone below. */
+  padding: var(--edge-zone-size);
 }
 
 .tile.active {
   box-shadow: 0 0 0 1px var(--accent-dim), 0 0 12px 0 var(--accent-dim);
+}
+
+/* Edge affordance: a pointer-events:none overlay so only the strips/button
+   below (each explicitly pointer-events:auto) can capture input. The strips
+   themselves live entirely inside .tile's padding gutter (never over the
+   header or the terminal body), so they can never intercept content input. */
+.edge-affordance {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.edge-zone {
+  position: absolute;
+  pointer-events: auto;
+}
+
+.edge-zone-top,
+.edge-zone-bottom {
+  left: 0;
+  right: 0;
+  height: var(--edge-zone-size);
+}
+
+.edge-zone-top {
+  top: 0;
+}
+
+.edge-zone-bottom {
+  bottom: 0;
+}
+
+.edge-zone-left,
+.edge-zone-right {
+  top: var(--edge-zone-size);
+  bottom: var(--edge-zone-size);
+  width: var(--edge-zone-size);
+}
+
+.edge-zone-left {
+  left: 0;
+}
+
+.edge-zone-right {
+  right: 0;
+}
+
+.edge-zone.hovered {
+  background: var(--accent-dim);
+  opacity: 0.35;
+}
+
+.edge-plus-btn {
+  position: absolute;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--accent);
+  background: var(--bg-raised);
+  color: var(--accent-strong);
+  font-size: 15px;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 0 8px 0 var(--accent-dim);
+}
+
+.edge-plus-btn.visible {
+  display: flex;
+}
+
+.edge-plus-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.edge-plus-btn:hover:not(:disabled) {
+  background: var(--accent-dim);
+}
+
+.edge-plus-top {
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.edge-plus-bottom {
+  bottom: 0;
+  left: 50%;
+  transform: translate(-50%, 50%);
+}
+
+.edge-plus-left {
+  left: 0;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.edge-plus-right {
+  right: 0;
+  top: 50%;
+  transform: translate(50%, -50%);
 }
 
 .tile-header {
@@ -369,6 +492,11 @@ body.graph-interact #app * {
 
 .theme-row.selected {
   border-color: var(--accent);
+}
+
+.theme-row.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .theme-row input[type='radio'] {

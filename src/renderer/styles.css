@@ -473,6 +473,17 @@ body.graph-interact #app * {
 .terminal-mount {
   height: 100%;
   width: 100%;
+  position: relative;
+}
+
+.terminal-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 5;
 }
 
 .terminal-mount .xterm,

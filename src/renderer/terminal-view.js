@@ -80,6 +80,12 @@ export function createTerminalSession({ id, cwd, theme, opacity = 1, claudeSessi
   let dataUnsubscribe = null;
   let exitUnsubscribe = null;
   let resizeObserver = null;
+  let loadingOverlay = null;
+
+  function removeLoadingOverlay() {
+    loadingOverlay?.remove();
+    loadingOverlay = null;
+  }
 
   // Refit xterm to its container and tell the pty only when the grid size
   // actually changed — every pty resize makes the running program repaint.
@@ -106,6 +112,12 @@ export function createTerminalSession({ id, cwd, theme, opacity = 1, claudeSessi
       term.open(container);
       fitAndSyncPty();
 
+      removeLoadingOverlay();
+      loadingOverlay = document.createElement('div');
+      loadingOverlay.className = 'terminal-loading';
+      loadingOverlay.innerHTML = '<div class="spinner"></div>';
+      container.appendChild(loadingOverlay);
+
       if (hint) {
         term.write(`\x1b[90m${hint}\x1b[0m\r\n`);
       }
@@ -114,11 +126,15 @@ export function createTerminalSession({ id, cwd, theme, opacity = 1, claudeSessi
         window.orbit.writeToTerminal(id, data);
       });
 
+      dataUnsubscribe?.();
+      exitUnsubscribe?.();
       dataUnsubscribe = window.orbit.onTerminalData(id, (chunk) => {
+        removeLoadingOverlay();
         term.write(boldenLinks(chunk));
       });
 
       exitUnsubscribe = window.orbit.onTerminalExit(id, () => {
+        removeLoadingOverlay();
         freeze('session ended');
         onExit?.();
       });
@@ -162,6 +178,7 @@ export function createTerminalSession({ id, cwd, theme, opacity = 1, claudeSessi
       if (disposed) return;
       disposed = true;
       resizeObserver?.disconnect();
+      removeLoadingOverlay();
       dataUnsubscribe?.();
       exitUnsubscribe?.();
       inputDisposable?.dispose();

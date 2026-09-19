@@ -73,6 +73,9 @@ export function createGraphView() {
   let containerEl = null;
   let disposed = false;
   let paused = false;
+  // cooldownTime is wall-clock, so a pause spanning it makes the engine stop
+  // on the first resumed tick with the layout unsettled; resume() reheats then.
+  let settled = false;
   // Bumped on every load() call; a stale call (superseded by a later reload()
   // or attach() before its awaits resolved) checks this and bails instead of
   // mutating graphInstance/containerEl out from under the newer call (#48).
@@ -139,6 +142,7 @@ export function createGraphView() {
     if (disposed || !containerEl) return;
     const seq = ++loadSeq;
     teardownInstance();
+    settled = false;
     showMessage('Loading graph...');
 
     const res = await window.orbit.getGraftGraph();
@@ -173,6 +177,7 @@ export function createGraphView() {
       .height(containerEl.clientHeight)
       .cooldownTime(4000)
       .onEngineStop(() => {
+        settled = true;
         const controls = graphInstance?.controls();
         if (!controls) return;
         controls.autoRotate = true;
@@ -209,6 +214,10 @@ export function createGraphView() {
 
     resume() {
       paused = false;
+      if (graphInstance && !settled) {
+        graphInstance.controls().autoRotate = false;
+        graphInstance.d3ReheatSimulation();
+      }
       graphInstance?.resumeAnimation();
     },
 

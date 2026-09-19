@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const DEFAULT_SETTINGS = {
-  theme: 'orbit-default',
+  theme: 'dos-nc',
   navOpacity: 1,
   consoleOpacity: 1,
   terminalOpacity: 1,
@@ -23,7 +23,7 @@ function load() {
 
   try {
     const raw = fs.readFileSync(settingsPath(), 'utf-8');
-    cache = { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    cache = { ...DEFAULT_SETTINGS, ...JSON.parse(raw), theme: DEFAULT_SETTINGS.theme };
   } catch {
     cache = { ...DEFAULT_SETTINGS };
   }

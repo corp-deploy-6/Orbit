@@ -14,7 +14,7 @@ import {
 } from './console-panel.js';
 import { renderSettingsPanel } from './settings-panel.js';
 import { createGraphView } from './graph-view.js';
-import { THEMES, applyTheme } from './themes/index.js';
+import { THEMES, DEFAULT_THEME_ID, applyTheme } from './themes/index.js';
 
 // Maps the opacity keys used in settings/UI to their CSS variable and
 // persisted settings key.
@@ -26,12 +26,11 @@ const OPACITY_CONFIG = {
 
 async function main() {
   const settings = await window.orbit.getSettings();
-  let currentThemeId = settings?.theme || 'orbit-default';
-  if (!THEMES[currentThemeId]) currentThemeId = 'orbit-default';
+  const theme = THEMES[DEFAULT_THEME_ID];
 
   let consoleLayoutMode = settings?.consoleLayoutMode === 'split' ? 'split' : 'grid';
 
-  applyTheme(THEMES[currentThemeId]);
+  applyTheme(theme);
 
   const opacity = {
     nav: settings?.navOpacity ?? 1,
@@ -56,7 +55,7 @@ async function main() {
 
   renderConsolePanel(consolePanelEl, { layoutMode: consoleLayoutMode });
   setTerminalOpacity(opacity.terminal);
-  setTerminalTheme(THEMES[currentThemeId].terminal, THEMES[currentThemeId].terminalFont);
+  setTerminalTheme(theme.terminal, theme.terminalFont);
   restoreSessions();
 
   window.orbit.onToolActivity((paths) => backdrop.pulse(paths));
@@ -70,29 +69,10 @@ async function main() {
     await window.orbit.setSetting(OPACITY_CONFIG[key].settingsKey, value);
   }
 
-  async function onSelectTheme(id) {
-    currentThemeId = id;
-    applyTheme(THEMES[id]);
-    setTerminalTheme(THEMES[id].terminal, THEMES[id].terminalFont);
-    renderSettingsPanel(settingsPanelEl, {
-      currentThemeId,
-      onSelectTheme,
-      opacity,
-      onOpacityChange,
-      onReloadGraph: () => backdrop.reload(),
-      consoleLayoutMode,
-      onSelectConsoleLayoutMode,
-    });
-    backdrop.refreshTheme();
-    await window.orbit.setSetting('theme', id);
-  }
-
   async function onSelectConsoleLayoutMode(mode) {
     consoleLayoutMode = mode;
     setConsoleLayoutMode(mode);
     renderSettingsPanel(settingsPanelEl, {
-      currentThemeId,
-      onSelectTheme,
       opacity,
       onOpacityChange,
       onReloadGraph: () => backdrop.reload(),
@@ -125,8 +105,6 @@ async function main() {
     renderDosChrome(dosMenuBarEl, dosFKeyBarEl, { active: view, onNavigate: showView, onAction: onDosAction });
     if (view === 'settings') {
       renderSettingsPanel(settingsPanelEl, {
-        currentThemeId,
-        onSelectTheme,
         opacity,
         onOpacityChange,
         onReloadGraph: () => backdrop.reload(),

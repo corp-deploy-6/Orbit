@@ -243,13 +243,6 @@ export function createGraphView() {
       graphInstance.width(containerEl.clientWidth).height(containerEl.clientHeight);
     },
 
-    // Called from the theme-switch handler so the graph recolors live, without
-    // a re-layout (only the color accessors are re-applied).
-    refreshTheme() {
-      if (!graphInstance) return;
-      graphInstance.nodeColor(nodeColorFor).linkColor(() => linkColorValue());
-    },
-
     dispose() {
       if (disposed) return;
       disposed = true;

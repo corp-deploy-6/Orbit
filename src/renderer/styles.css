@@ -589,30 +589,11 @@ body.graph-interact #app * {
   border-color: var(--accent);
 }
 
-.theme-row.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .theme-row input[type='radio'] {
   accent-color: var(--accent);
 }
 
 .theme-row span {
-  flex: 1;
-}
-
-.theme-swatch {
-  display: flex;
-  flex-shrink: 0;
-  width: 64px;
-  height: 16px;
-  border-radius: var(--radius-sm);
-  overflow: hidden;
-  border: 1px solid var(--border-subtle);
-}
-
-.theme-swatch-segment {
   flex: 1;
 }
 

@@ -1,0 +1,279 @@
+/* DOS / Norton Commander theme: everything here is scoped to
+   [data-theme="dos-nc"] so other themes never match it. Font: Px437 IBM VGA
+   8x16 by VileR (int10h.org), CC BY-SA 4.0, see fonts/LICENSE.txt. */
+
+@font-face {
+  font-family: 'Px437 IBM VGA';
+  src: url('./fonts/Web437_IBM_VGA_8x16.woff') format('woff');
+  font-display: block;
+}
+
+#dos-menubar,
+#dos-fkeybar {
+  display: none;
+}
+
+[data-theme='dos-nc'] {
+  font-size: 16px;
+  line-height: 16px;
+}
+
+[data-theme='dos-nc'] body {
+  -webkit-font-smoothing: none;
+}
+
+[data-theme='dos-nc'] #dos-menubar,
+[data-theme='dos-nc'] #dos-fkeybar {
+  display: flex;
+  position: fixed;
+  left: 0;
+  right: 0;
+  height: 16px;
+  z-index: 2;
+  pointer-events: auto;
+  background: #00aaaa;
+  color: #000;
+  white-space: pre;
+  user-select: none;
+}
+
+[data-theme='dos-nc'] #dos-menubar {
+  top: 0;
+}
+
+[data-theme='dos-nc'] #dos-fkeybar {
+  bottom: 0;
+}
+
+[data-theme='dos-nc'] #app {
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+[data-theme='dos-nc'] body.graph-interact #dos-menubar,
+[data-theme='dos-nc'] body.graph-interact #dos-fkeybar {
+  pointer-events: none;
+}
+
+.dos-menu-item {
+  padding: 0 8px;
+  cursor: pointer;
+}
+
+.dos-menu-item:hover,
+.dos-menu-item.active {
+  background: #000;
+  color: #00aaaa;
+}
+
+.dos-menu-title {
+  margin-left: auto;
+  padding: 0 8px;
+}
+
+.dos-fkey {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.dos-fkey-num {
+  background: #000;
+  color: #aaa;
+  padding: 0 4px 0 0;
+}
+
+.dos-fkey-label {
+  flex: 1;
+  padding-left: 0;
+  overflow: hidden;
+  background: #00aaaa;
+  color: #000;
+}
+
+.dos-fkey:hover:not(.inert) .dos-fkey-label {
+  background: #000;
+  color: #00aaaa;
+}
+
+.dos-fkey.inert {
+  cursor: default;
+}
+
+.dos-fkey.inert .dos-fkey-num {
+  color: #555;
+}
+
+/* Nav bar */
+[data-theme='dos-nc'] #nav-bar {
+  width: 80px;
+  padding: 8px 0;
+  gap: 8px;
+  border-right: 3px double #55ffff;
+}
+
+[data-theme='dos-nc'] .nav-item {
+  width: 72px;
+  height: 16px;
+  font-size: 16px;
+  border: 0;
+  color: var(--text-primary);
+}
+
+[data-theme='dos-nc'] .nav-item .nav-icon {
+  display: none;
+}
+
+[data-theme='dos-nc'] .nav-item:hover,
+[data-theme='dos-nc'] .nav-item.active {
+  background: #00aaaa;
+  color: #000;
+}
+
+/* Panels */
+[data-theme='dos-nc'] .console-panel-inner,
+[data-theme='dos-nc'] .settings-panel-inner {
+  padding: 16px;
+  gap: 16px;
+}
+
+[data-theme='dos-nc'] .tile {
+  border: 1px solid var(--border-subtle);
+  box-shadow: 4px 4px 0 #000;
+  padding: var(--edge-zone-size);
+}
+
+[data-theme='dos-nc'] .tile.active {
+  border: 3px double var(--border-strong);
+  box-shadow: 4px 4px 0 #000;
+  padding: calc(var(--edge-zone-size) - 2px);
+}
+
+[data-theme='dos-nc'] .tile-header {
+  padding: 0 8px;
+  border-bottom: 0;
+  color: #000;
+}
+
+[data-theme='dos-nc'] .tile-label {
+  font-size: 16px;
+  color: #000;
+  padding: 0;
+}
+
+[data-theme='dos-nc'] .tile-label::before {
+  content: '\2561 ';
+}
+
+[data-theme='dos-nc'] .tile-label::after {
+  content: ' \255E';
+}
+
+[data-theme='dos-nc'] .tile-label:focus {
+  background: #000;
+  color: #00aaaa;
+  outline: 0;
+}
+
+[data-theme='dos-nc'] .tile-usage {
+  font-size: 16px;
+  color: #000;
+}
+
+[data-theme='dos-nc'] .tile-close {
+  font-size: 16px;
+  color: #000;
+  padding: 0 4px;
+}
+
+[data-theme='dos-nc'] .tile-close:hover {
+  background: #000;
+  color: #00aaaa;
+}
+
+[data-theme='dos-nc'] .tile-body,
+[data-theme='dos-nc'] .settings-hint,
+[data-theme='dos-nc'] .opacity-row,
+[data-theme='dos-nc'] .opacity-row-value,
+[data-theme='dos-nc'] .graph-panel-message {
+  font-size: 16px;
+}
+
+[data-theme='dos-nc'] .tile-body-active {
+  padding: 0;
+  background: rgba(var(--bg-sunken-rgb), var(--terminal-opacity));
+}
+
+[data-theme='dos-nc'] .tile-grid-empty-btn,
+[data-theme='dos-nc'] .reload-graph-btn {
+  font: inherit;
+  font-size: 16px;
+  border: 1px solid var(--border-strong);
+  padding: 0 8px;
+  background: #000;
+  color: var(--text-primary);
+}
+
+[data-theme='dos-nc'] .tile-grid-empty-btn:hover,
+[data-theme='dos-nc'] .reload-graph-btn:hover {
+  background: #00aaaa;
+  color: #000;
+}
+
+[data-theme='dos-nc'] .settings-heading {
+  font-size: 16px;
+  color: #ffff55;
+}
+
+[data-theme='dos-nc'] .theme-row {
+  font: inherit;
+  font-size: 16px;
+  padding: 8px 8px;
+  border: 1px solid var(--border-subtle);
+}
+
+[data-theme='dos-nc'] .theme-row:hover,
+[data-theme='dos-nc'] .theme-row.selected {
+  background: #00aaaa;
+  color: #000;
+  border-color: #00aaaa;
+}
+
+[data-theme='dos-nc'] .theme-row:hover span,
+[data-theme='dos-nc'] .theme-row.selected span {
+  color: #000;
+}
+
+[data-theme='dos-nc'] .split-divider {
+  background: var(--border-subtle);
+}
+
+[data-theme='dos-nc'] .edge-zone.hovered,
+[data-theme='dos-nc'] .edge-plus-btn {
+  box-shadow: none;
+}
+
+[data-theme='dos-nc'] .spinner {
+  animation-timing-function: steps(8);
+}
+
+/* Scrollbars: block-character look */
+[data-theme='dos-nc'] ::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+  background: #0000aa;
+}
+
+[data-theme='dos-nc'] ::-webkit-scrollbar-track {
+  background: #00aaaa;
+}
+
+[data-theme='dos-nc'] ::-webkit-scrollbar-thumb {
+  background: #0000aa;
+  border: 4px solid #00aaaa;
+}
+
+[data-theme='dos-nc'] .terminal-mount .xterm-viewport::-webkit-scrollbar {
+  width: 0;
+}

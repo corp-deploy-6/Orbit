@@ -1,18 +1,6 @@
-// Settings view: lists available themes as radio rows, plus the graph
-// backdrop's per-panel opacity sliders and a manual reload button. Selecting
-// a theme / dragging a slider / clicking reload calls back to the caller,
-// which persists + applies it live.
-
-import { THEMES, SELECTABLE_THEME_IDS } from './themes/index.js';
-
-// Tokens shown as swatch segments, in order, for a quick palette preview.
-const SWATCH_TOKENS = [
-  '--bg-base',
-  '--panel-surface',
-  '--accent',
-  '--accent-secondary',
-  '--text-primary',
-];
+// Settings view: console layout, plus the graph backdrop's per-panel opacity
+// sliders and a manual reload button. Changing a layout / dragging a slider /
+// clicking reload calls back to the caller, which persists + applies it live.
 
 // key -> label shown next to each opacity slider. Order matches the panels
 // left-to-right in the app layout (nav, console), with the terminal chat
@@ -28,26 +16,9 @@ const CONSOLE_LAYOUT_OPTIONS = [
   { id: 'split', label: 'Split' },
 ];
 
-function renderSwatch(theme) {
-  const swatch = document.createElement('div');
-  swatch.className = 'theme-swatch';
-  const tokens = theme.tokens || {};
-  for (const token of SWATCH_TOKENS) {
-    const color = tokens[token];
-    if (!color) continue;
-    const segment = document.createElement('span');
-    segment.className = 'theme-swatch-segment';
-    segment.style.background = color;
-    swatch.appendChild(segment);
-  }
-  return swatch;
-}
-
 export function renderSettingsPanel(
   container,
   {
-    currentThemeId,
-    onSelectTheme,
     opacity,
     onOpacityChange,
     onReloadGraph,
@@ -89,37 +60,6 @@ export function renderSettingsPanel(
   }
 
   panel.appendChild(layoutList);
-
-  const heading = document.createElement('h2');
-  heading.className = 'settings-heading';
-  heading.textContent = 'Theme';
-  panel.appendChild(heading);
-
-  const list = document.createElement('div');
-  list.className = 'theme-list';
-
-  for (const theme of SELECTABLE_THEME_IDS.map((id) => THEMES[id])) {
-    const row = document.createElement('label');
-    row.className = 'theme-row';
-    row.classList.toggle('selected', theme.id === currentThemeId);
-
-    const radio = document.createElement('input');
-    radio.type = 'radio';
-    radio.name = 'theme';
-    radio.value = theme.id;
-    radio.checked = theme.id === currentThemeId;
-    radio.addEventListener('change', () => onSelectTheme?.(theme.id));
-
-    const name = document.createElement('span');
-    name.textContent = theme.name;
-
-    row.appendChild(radio);
-    row.appendChild(name);
-    row.appendChild(renderSwatch(theme));
-    list.appendChild(row);
-  }
-
-  panel.appendChild(list);
 
   const graphHeading = document.createElement('h2');
   graphHeading.className = 'settings-heading';
@@ -172,6 +112,11 @@ export function renderSettingsPanel(
   hint.className = 'settings-hint';
   hint.textContent = 'Hold Alt to pan, zoom and click the graph anywhere in the window.';
   panel.appendChild(hint);
+
+  const credit = document.createElement('p');
+  credit.className = 'settings-hint';
+  credit.textContent = 'Font: Px437 IBM VGA by VileR (int10h.org), CC BY-SA 4.0.';
+  panel.appendChild(credit);
 
   container.appendChild(panel);
 }

@@ -171,6 +171,7 @@ export function createGraphView() {
       .linkColor(() => linkColorValue())
       .width(containerEl.clientWidth)
       .height(containerEl.clientHeight)
+      .cooldownTime(4000)
       .onEngineStop(() => {
         const controls = graphInstance?.controls();
         if (!controls) return;

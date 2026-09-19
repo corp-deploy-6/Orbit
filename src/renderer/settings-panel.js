@@ -23,11 +23,9 @@ const OPACITY_ROWS = [
   { key: 'terminal', label: 'Terminal' },
 ];
 
-// Split isn't implemented yet (PR2) — its option is shown but disabled
-// rather than hidden, so the setting's existence and intent are visible.
 const CONSOLE_LAYOUT_OPTIONS = [
   { id: 'grid', label: 'Grid' },
-  { id: 'split', label: 'Split (coming soon)', disabled: true },
+  { id: 'split', label: 'Split' },
 ];
 
 function renderSwatch(theme) {
@@ -74,15 +72,12 @@ export function renderSettingsPanel(
     const row = document.createElement('label');
     row.className = 'theme-row';
     row.classList.toggle('selected', option.id === consoleLayoutMode);
-    if (option.disabled) row.classList.add('disabled');
 
     const radio = document.createElement('input');
     radio.type = 'radio';
     radio.name = 'console-layout';
     radio.value = option.id;
     radio.checked = option.id === consoleLayoutMode;
-    radio.disabled = !!option.disabled;
-    if (option.disabled) row.title = 'Split layout is coming in a later release';
     radio.addEventListener('change', () => onSelectConsoleLayoutMode?.(option.id));
 
     const name = document.createElement('span');

@@ -6,6 +6,7 @@ import {
   setTerminalOpacity,
   forceRedrawConsole,
   restoreSessions,
+  setConsoleLayoutMode,
 } from './console-panel.js';
 import { renderSettingsPanel } from './settings-panel.js';
 import { createGraphView } from './graph-view.js';
@@ -24,8 +25,6 @@ async function main() {
   let currentThemeId = settings?.theme || 'orbit-default';
   if (!THEMES[currentThemeId]) currentThemeId = 'orbit-default';
 
-  // Grid is the only mode PR1 implements; split is settings-only groundwork
-  // for PR2 (its radio option is present but disabled).
   let consoleLayoutMode = settings?.consoleLayoutMode === 'split' ? 'split' : 'grid';
 
   applyTheme(THEMES[currentThemeId]);
@@ -49,7 +48,7 @@ async function main() {
   const backdrop = createGraphView();
   backdrop.attach(graphBackdropEl);
 
-  renderConsolePanel(consolePanelEl);
+  renderConsolePanel(consolePanelEl, { layoutMode: consoleLayoutMode });
   setTerminalOpacity(opacity.terminal);
   setTerminalTheme(THEMES[currentThemeId].terminal);
   restoreSessions();
@@ -84,6 +83,7 @@ async function main() {
 
   async function onSelectConsoleLayoutMode(mode) {
     consoleLayoutMode = mode;
+    setConsoleLayoutMode(mode);
     renderSettingsPanel(settingsPanelEl, {
       currentThemeId,
       onSelectTheme,

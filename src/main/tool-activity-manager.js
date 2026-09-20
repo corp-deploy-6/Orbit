@@ -60,7 +60,7 @@ function readNewLines(watch) {
 
 // graft's own MCP tool names, and the CLI verbs when invoked via Bash/PowerShell.
 const GRAFT_MCP_NAME_RE = /^mcp__graft__graft_(find_code|find_all|file_api|repo_map|trace_calls)$/;
-const GRAFT_CLI_RE = /\bgraft\s+(ask|grep|callers|skeleton)\b/;
+const GRAFT_CLI_RE = /\bgraft\s+(ask|grep|callers|skeleton|map)\b/;
 
 // A repo-relative-looking path, forward- or back-slashed, with an optional
 // trailing "L12" / "L12-L34" line reference (graft's format) that the char

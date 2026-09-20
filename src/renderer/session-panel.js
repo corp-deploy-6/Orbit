@@ -451,6 +451,8 @@ export async function addTerminal(anchor) {
     const before = anchor.edgeSide === 'top' || anchor.edgeSide === 'left';
     insertIndex = before ? anchorIndex : anchorIndex + 1;
   }
+  const preSplitRoot = splitRoot;
+  const preTileIds = tiles.map((t) => t.id);
   tiles.splice(insertIndex, 0, record);
 
   if (layoutMode === 'split') {
@@ -496,6 +498,10 @@ export async function addTerminal(anchor) {
 
   if (!path) {
     removeTile(record.id);
+    const unchanged = tiles.length === preTileIds.length && tiles.every((t, i) => t.id === preTileIds[i]);
+    if (layoutMode === 'split' && preSplitRoot && unchanged) {
+      splitRoot = preSplitRoot;
+    }
     restorePreviousActive();
     return;
   }

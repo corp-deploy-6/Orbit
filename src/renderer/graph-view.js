@@ -31,8 +31,15 @@ const LIT_LINK_WIDTH = 1.8;
 // A travelling dot is emitted along every lit edge — the signal actually moves
 // from parent to child, which reads at a glance where a colour fade on a small
 // sphere does not. Speed is fraction-of-link-length per frame.
-const PARTICLE_WIDTH = 2.5;
-const PARTICLE_SPEED = 0.012;
+const PARTICLE_WIDTH = 10;
+const PARTICLE_SPEED = 0.003;
+// three-forcegraph derives photon opacity as linkOpacity * 3, so the library
+// default 0.2 also caps a travelling dot at 0.6 — at 0.34+ the dot is fully
+// opaque, which is what makes it read against the blue background.
+const LINK_OPACITY = 0.35;
+// A lit node swells as well as changing colour: at camDist ~1000 an unlit node
+// is about 6px across, far too small for colour alone to register.
+const LIT_NODE_VAL = 12;
 
 // How far apart queued steps play, and how many can be queued at once (older
 // ones dropped) so a burst of activity doesn't play back for minutes.
@@ -160,12 +167,26 @@ export function createGraphView() {
     return linkPulses.has(link) ? LIT_LINK_WIDTH : 0;
   }
 
+  function nodeValFor(node) {
+    return pulses.has(node) ? LIT_NODE_VAL : 1;
+  }
+
+  // Node and particle meshes use MeshLambertMaterial, so scene lighting drags a
+  // white material down to roughly mid-grey on screen. Emissive is unlit, so a
+  // lit node/dot renders at its full colour regardless of the lights.
+  function setEmissive(obj, color) {
+    const emissive = obj?.material?.emissive;
+    if (emissive) emissive.set(color);
+  }
+
   // Lights an edge: the colour/width pulse plus a dot that travels it. The
   // particle animates itself frame by frame once emitted, independently of
   // the pulse tick's accessor re-application.
   function fireLink(link, deadline) {
     linkPulses.set(link, deadline);
     graphInstance?.emitParticle(link);
+    const photons = link.__singleHopPhotonsObj?.children;
+    if (photons?.length) setEmissive(photons[photons.length - 1], readToken(PULSE_COLOR_VAR, '#ffffff'));
   }
 
   function stopPulseTick() {
@@ -177,7 +198,12 @@ export function createGraphView() {
   function pulseTick() {
     const now = Date.now();
     for (const [node, until] of pulses) {
-      if (until <= now) pulses.delete(node);
+      if (until <= now) {
+        pulses.delete(node);
+        setEmissive(node.__threeObj, '#000000');
+      } else {
+        setEmissive(node.__threeObj, nodeColorFor(node));
+      }
     }
     // linkColor/linkWidth re-apply rebuilds every link's material — 336 edges
     // vs the small handful actually lit — so it's skipped on ticks where no
@@ -187,7 +213,7 @@ export function createGraphView() {
     for (const [link, until] of linkPulses) {
       if (until <= now) linkPulses.delete(link);
     }
-    graphInstance?.nodeColor(nodeColorFor);
+    graphInstance?.nodeColor(nodeColorFor).nodeVal(nodeValFor);
     if (hadLinks) graphInstance?.linkColor(linkColorFor).linkWidth(linkWidthFor);
     if (!pulses.size && !linkPulses.size) stopPulseTick();
   }
@@ -209,6 +235,7 @@ export function createGraphView() {
     if (kind === 'idle') {
       pulses.set(step.node, deadline);
       if (step.link) fireLink(step.link, deadline);
+      setEmissive(step.node.__threeObj, readToken(PULSE_COLOR_VAR, '#ffffff'));
       startPulseTick();
       return;
     }
@@ -403,8 +430,10 @@ export function createGraphView() {
       .graphData(graphData)
       .nodeLabel((n) => `${n.kind}: ${n.name}`)
       .nodeColor(nodeColorFor)
+      .nodeVal(nodeValFor)
       .linkColor(linkColorFor)
       .linkWidth(linkWidthFor)
+      .linkOpacity(LINK_OPACITY)
       // No standing linkDirectionalParticles count — every dot on screen comes
       // from an explicit emitParticle(), so the graph is still when nothing fires.
       .linkDirectionalParticleWidth(PARTICLE_WIDTH)

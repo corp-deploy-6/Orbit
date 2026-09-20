@@ -64,6 +64,12 @@ const createWindow = () => {
 
   if (process.env.ORBIT_DEVTOOLS === '1') {
     webContents.openDevTools();
+    // Mirror the renderer console into the main process stdout, so a dev run
+    // started from a terminal shows renderer errors without the devtools
+    // window in front of you.
+    webContents.on('console-message', (event, level, message, line, sourceId) => {
+      console.log(`[renderer] ${message}  (${sourceId}:${line})`);
+    });
   }
 };
 

@@ -28,6 +28,12 @@ const LIT_LINK_WIDTH = 1.8;
 const STEP_INTERVAL_MS = 250;
 const MAX_QUEUED_STEPS = 40;
 
+// With no agent activity to show, the backdrop walks a random short path this
+// often so it always reads as alive. Real activity wins: an idle walk is
+// skipped whenever anything is already lit or queued.
+const IDLE_TRACE_MS = 5000;
+const IDLE_PATH_HOPS = 3;
+
 function readToken(name, fallback) {
   const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return value || fallback;
@@ -97,6 +103,10 @@ export function createGraphView() {
   // than inventing one). Keyed both directions so lookup doesn't care which
   // file came first.
   let linksByPair = new Map(); // "aId|bId" -> link object
+  // Every node and edge, not just the file ones: the idle walk roams the whole
+  // graph, where real activity only ever lights files it can resolve by path.
+  let nodesById = new Map(); // node id -> node
+  let neighbors = new Map(); // node id -> [{ node, link }]
   const pulses = new Map(); // node -> deadline (ms)
   const linkPulses = new Map(); // link -> deadline (ms)
   let pulseTimerId = null;
@@ -105,8 +115,9 @@ export function createGraphView() {
   // to the previous one. Query steps (graft/Grep/Glob results) never set or
   // read this — result order is relevance rank, not a walked path.
   const lastNodeBySession = new Map();
-  let stepQueue = []; // { sessionId, kind, files }
+  let stepQueue = []; // { kind, files, sessionId } or { kind: 'idle', node, link }
   let stepTimerId = null;
+  let idleTimerId = null;
 
   // Re-derives the base colour every call rather than caching it, so a theme
   // switch mid-pulse doesn't fade back to the old theme's colour.
@@ -167,9 +178,17 @@ export function createGraphView() {
     return nodesByPath.get(file) || nodesByLowerPath.get(file.toLowerCase());
   }
 
-  function playStep({ sessionId, kind, files }) {
+  function playStep(step) {
     if (disposed || paused || !graphInstance) return;
+    const { sessionId, kind, files } = step;
     const deadline = Date.now() + PULSE_MS;
+
+    if (kind === 'idle') {
+      pulses.set(step.node, deadline);
+      if (step.link) linkPulses.set(step.link, deadline);
+      startPulseTick();
+      return;
+    }
 
     if (kind === 'touch') {
       const node = files[0] && resolveNode(files[0]);
@@ -210,6 +229,49 @@ export function createGraphView() {
     stepTimerId = setInterval(pumpStepQueue, STEP_INTERVAL_MS);
   }
 
+  function randomFrom(list) {
+    return list[Math.floor(Math.random() * list.length)];
+  }
+
+  // Walks a random unvisited-neighbour path of up to IDLE_PATH_HOPS edges and
+  // queues it as ordinary steps, so it paces, fades and clears through exactly
+  // the same machinery as a real trace.
+  function queueIdlePath() {
+    if (disposed || paused || !graphInstance || !neighbors.size) return;
+    // Real activity owns the backdrop: anything lit or pending means skip.
+    if (stepQueue.length || pulses.size || linkPulses.size) return;
+
+    const startId = randomFrom([...neighbors.keys()]);
+    let current = nodesById.get(startId);
+    if (!current) return;
+
+    const visited = new Set([current.id]);
+    const steps = [{ kind: 'idle', node: current }];
+    for (let hop = 0; hop < IDLE_PATH_HOPS; hop++) {
+      const options = (neighbors.get(current.id) || []).filter((n) => !visited.has(n.node.id));
+      if (!options.length) break;
+      const next = randomFrom(options);
+      visited.add(next.node.id);
+      steps.push({ kind: 'idle', node: next.node, link: next.link });
+      current = next.node;
+    }
+    if (steps.length < 2) return; // a lone node with no unvisited edge isn't a path
+
+    stepQueue.push(...steps);
+    startStepTimer();
+  }
+
+  function startIdleTimer() {
+    if (idleTimerId !== null) return;
+    idleTimerId = setInterval(queueIdlePath, IDLE_TRACE_MS);
+  }
+
+  function stopIdleTimer() {
+    if (idleTimerId === null) return;
+    clearInterval(idleTimerId);
+    idleTimerId = null;
+  }
+
   function showMessage(text) {
     if (!containerEl) return;
     containerEl.innerHTML = '';
@@ -228,6 +290,7 @@ export function createGraphView() {
   function teardownInstance() {
     stopPulseTick();
     stopStepTimer();
+    stopIdleTimer();
     pulses.clear();
     linkPulses.clear();
     stepQueue = [];
@@ -235,6 +298,8 @@ export function createGraphView() {
     nodesByPath = new Map();
     nodesByLowerPath = new Map();
     linksByPair = new Map();
+    nodesById = new Map();
+    neighbors = new Map();
     resizeObserver?.disconnect();
     resizeObserver = null;
     graphInstance?._destructor();
@@ -279,6 +344,19 @@ export function createGraphView() {
       linksByPair.set(`${link.target}|${link.source}`, link);
     }
 
+    // Undirected adjacency over the whole graph, read in the same pre-mutation
+    // window as linksByPair above (source/target are still id strings here).
+    for (const node of graphData.nodes) nodesById.set(node.id, node);
+    for (const link of graphData.links) {
+      const source = nodesById.get(link.source);
+      const target = nodesById.get(link.target);
+      if (!source || !target || source === target) continue;
+      if (!neighbors.has(source.id)) neighbors.set(source.id, []);
+      if (!neighbors.has(target.id)) neighbors.set(target.id, []);
+      neighbors.get(source.id).push({ node: target, link });
+      neighbors.get(target.id).push({ node: source, link });
+    }
+
     // 'orbit' (not the library default 'trackball'): autoRotate below only exists
     // on OrbitControls; TrackballControls silently ignores the flag.
     graphInstance = ForceGraph3D({ controlType: 'orbit' })(containerEl)
@@ -306,6 +384,8 @@ export function createGraphView() {
       graphInstance.width(containerEl.clientWidth).height(containerEl.clientHeight);
     });
     resizeObserver.observe(containerEl);
+
+    if (!paused) startIdleTimer();
   }
 
   return {
@@ -323,6 +403,7 @@ export function createGraphView() {
       paused = true;
       stopPulseTick();
       stopStepTimer();
+      stopIdleTimer();
       pulses.clear();
       linkPulses.clear();
       stepQueue = [];
@@ -331,6 +412,7 @@ export function createGraphView() {
 
     resume() {
       paused = false;
+      if (graphInstance) startIdleTimer();
       if (graphInstance && !settled) {
         graphInstance.controls().autoRotate = false;
         graphInstance.d3ReheatSimulation();

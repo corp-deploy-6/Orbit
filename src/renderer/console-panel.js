@@ -189,6 +189,26 @@ function buildSplitDom(node) {
   return container;
 }
 
+// Builds newNode's subtree directly into `parentPane` (before `beforeEl`),
+// top-down: each split shell is attached to its already-live parent before
+// recursing into children, and each leaf's existing tile element is moved
+// (not recreated) into place. Unlike buildSplitDom, which builds bottom-up
+// into a detached container, nothing here is ever offscreen mid-build, so a
+// tile with focus never gets detached. Used by patchSplitDom's fallback for
+// shapes the fast paths above don't cover (e.g. a root direction flip).
+function mountSplitDom(node, parentPane, beforeEl) {
+  if (node.type === 'leaf') {
+    const el = tileEls.get(node.tileId).el;
+    if (el.parentElement) parentPane.moveBefore(el, beforeEl);
+    else parentPane.insertBefore(el, beforeEl);
+    return;
+  }
+  const { container, paneA, paneB } = createSplitShell(node);
+  parentPane.insertBefore(container, beforeEl);
+  mountSplitDom(node.children[0], paneA, null);
+  mountSplitDom(node.children[1], paneB, null);
+}
+
 // Patches the live split DOM from oldNode's shape to newNode's, touching only
 // what changed (PR #72 review: rebuilding the whole tree detached every tile
 // and dropped xterm focus on tiles the edit never touched). split-layout.js
@@ -243,8 +263,11 @@ function patchSplitDom(oldNode, newNode, existingEl, parentPane) {
     return;
   }
 
-  const fresh = buildSplitDom(newNode);
-  if (fresh !== existingEl) parentPane.replaceChildren(fresh);
+  // Structural mismatch (e.g. a root direction flip from buildFromOrder):
+  // mount the new subtree live, moving every existing tile element in place,
+  // then drop the emptied old subtree.
+  mountSplitDom(newNode, parentPane, existingEl);
+  existingEl.remove();
 }
 
 // Drags the divider between two panes. Style writes (and therefore the

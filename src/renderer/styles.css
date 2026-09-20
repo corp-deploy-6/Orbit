@@ -40,7 +40,6 @@
   --panel-header-rgb: 42, 37, 29;
 
   /* Per-panel backdrop opacity, default 1 = today's fully opaque look. */
-  --nav-opacity: 1;
   --console-opacity: 1;
   --terminal-opacity: 1;
 }
@@ -82,48 +81,6 @@ body.graph-interact {
 body.graph-interact #app,
 body.graph-interact #app * {
   pointer-events: none !important;
-}
-
-#nav-bar {
-  width: 64px;
-  flex-shrink: 0;
-  background: rgba(var(--bg-sunken-rgb), var(--nav-opacity));
-  border-right: 1px solid var(--border-subtle);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 12px 0;
-  gap: 8px;
-}
-
-.nav-item {
-  pointer-events: auto;
-  width: 44px;
-  height: 44px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  border-radius: var(--radius-lg);
-  color: var(--text-secondary);
-  font-size: 10px;
-  cursor: pointer;
-}
-
-.nav-item:hover {
-  background: var(--bg-raised);
-  color: var(--text-primary);
-}
-
-.nav-item.active {
-  background: var(--bg-raised);
-  color: var(--accent-strong);
-}
-
-.nav-item .nav-icon {
-  font-size: 18px;
-  line-height: 1;
 }
 
 #console-panel {

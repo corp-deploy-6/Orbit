@@ -2,11 +2,9 @@
 // sliders and a manual reload button. Changing a layout / dragging a slider /
 // clicking reload calls back to the caller, which persists + applies it live.
 
-// key -> label shown next to each opacity slider. Order matches the panels
-// left-to-right in the app layout (nav, console), with the terminal chat
-// surface (inside each console tile) last.
+// key -> label shown next to each opacity slider. Console panel first, with
+// the terminal chat surface (inside each console tile) last.
 const OPACITY_ROWS = [
-  { key: 'nav', label: 'Nav Bar' },
   { key: 'console', label: 'Console' },
   { key: 'terminal', label: 'Terminal' },
 ];

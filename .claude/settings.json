@@ -74,5 +74,31 @@
       "Bash(graft-dev:*)",
       "Bash(node dist/cli.js:*)"
     ]
+  },
+  "skillOverrides": {
+    "caveman-compress": "off",
+    "caveman-help": "off",
+    "caveman-review": "off",
+    "caveman-stats": "off",
+    "caveman:caveman-init": "off",
+    "caveman:cavecrew": "off",
+    "caveman:caveman": "off",
+    "caveman:caveman-commit": "off",
+    "caveman:caveman-compress": "off",
+    "caveman:caveman-discover": "off",
+    "caveman:caveman-explore": "off",
+    "caveman:caveman-evidence-review": "off",
+    "caveman:caveman-learn": "off",
+    "caveman:caveman-manage": "off",
+    "caveman:caveman-optimize": "off",
+    "caveman:caveman-review": "off",
+    "caveman:caveman-setup": "off",
+    "caveman:caveman-stats": "off",
+    "caveman:investigate-first": "off",
+    "caveman:lean-build": "off",
+    "caveman:migration": "off",
+    "caveman:safe-refactor": "off",
+    "caveman:surgical-patch": "off",
+    "caveman:verify-and-stop": "off"
   }
 }

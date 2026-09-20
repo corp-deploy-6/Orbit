@@ -7,7 +7,6 @@ import path from 'node:path';
 
 const DEFAULT_SETTINGS = {
   theme: 'dos-nc',
-  navOpacity: 1,
   consoleOpacity: 1,
   terminalOpacity: 1,
 };

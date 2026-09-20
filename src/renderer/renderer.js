@@ -1,6 +1,5 @@
 import './styles.css';
 import './dos-theme.css';
-import { renderNavBar } from './nav-bar.js';
 import { renderDosChrome, handleDosFKey } from './dos-chrome.js';
 import {
   renderConsolePanel,
@@ -19,7 +18,6 @@ import { THEMES, DEFAULT_THEME_ID, applyTheme } from './themes/index.js';
 // Maps the opacity keys used in settings/UI to their CSS variable and
 // persisted settings key.
 const OPACITY_CONFIG = {
-  nav: { cssVar: '--nav-opacity', settingsKey: 'navOpacity' },
   console: { cssVar: '--console-opacity', settingsKey: 'consoleOpacity' },
   terminal: { cssVar: '--terminal-opacity', settingsKey: 'terminalOpacity' },
 };
@@ -33,7 +31,6 @@ async function main() {
   applyTheme(theme);
 
   const opacity = {
-    nav: settings?.navOpacity ?? 1,
     console: settings?.consoleOpacity ?? 1,
     terminal: settings?.terminalOpacity ?? 1,
   };
@@ -41,10 +38,8 @@ async function main() {
     document.documentElement.style.setProperty(OPACITY_CONFIG[key].cssVar, opacity[key]);
   }
 
-  const navBarEl = document.getElementById('nav-bar');
   const consolePanelEl = document.getElementById('console-panel');
   const settingsPanelEl = document.getElementById('settings-panel');
-  const dosMenuBarEl = document.getElementById('dos-menubar');
   const dosFKeyBarEl = document.getElementById('dos-fkeybar');
   const graphBackdropEl = document.getElementById('graph-backdrop');
 
@@ -100,9 +95,8 @@ async function main() {
   function showView(view) {
     consolePanelEl.hidden = view !== 'console';
     settingsPanelEl.hidden = view !== 'settings';
-    renderNavBar(navBarEl, { onNavigate: showView, active: view });
     currentView = view;
-    renderDosChrome(dosMenuBarEl, dosFKeyBarEl, { active: view, onNavigate: showView, onAction: onDosAction });
+    renderDosChrome(dosFKeyBarEl, { onNavigate: showView, onAction: onDosAction });
     if (view === 'settings') {
       renderSettingsPanel(settingsPanelEl, {
         opacity,

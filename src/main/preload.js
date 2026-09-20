@@ -41,7 +41,7 @@ contextBridge.exposeInMainWorld('orbit', {
   getGraftGraph: () => ipcRenderer.invoke('graftGraph:get'),
 
   onToolActivity: (callback) => {
-    const listener = (event, payload) => callback(payload.paths);
+    const listener = (event, payload) => callback(payload);
     ipcRenderer.on('toolActivity:file', listener);
     return () => ipcRenderer.removeListener('toolActivity:file', listener);
   },

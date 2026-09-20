@@ -18,16 +18,17 @@ const FKEYS = [
   { n: 9, label: '' },
   { n: 10, label: '' },
   { n: 11, label: '' },
-  { n: 12, label: 'HELP' },
+  { n: 12, label: 'Help', view: 'help' },
 ];
 
-export function renderDosChrome(fKeyBarEl, { onNavigate, onAction }) {
+export function renderDosChrome(fKeyBarEl, { onNavigate, onAction, currentView }) {
   fKeyBarEl.innerHTML = '';
   for (const key of FKEYS) {
     const live = Boolean(key.view || key.action);
     const el = document.createElement('span');
     el.className = 'dos-fkey';
     el.classList.toggle('inert', !live);
+    el.classList.toggle('active', Boolean(key.view) && key.view === currentView);
     el.innerHTML = `<span class="dos-fkey-num">${key.n}</span><span class="dos-fkey-label">${key.label}</span>`;
     if (live) el.addEventListener('click', () => runFKey(key, { onNavigate, onAction }));
     fKeyBarEl.appendChild(el);

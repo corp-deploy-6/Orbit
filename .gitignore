@@ -93,3 +93,6 @@ out/
 
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
+
+# Raw YouTube transcripts — research source, ideas already mined into docs/agentic-os-feature-ideas.md
+/yt video transcripts/

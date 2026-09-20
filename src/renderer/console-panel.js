@@ -3,12 +3,13 @@
 // spawn). The graph is no longer a tile type — it's a single full-window
 // backdrop instance owned by renderer.js (see graph-view.js).
 
-import { createTileElement, updateTileHeader, renderBody, setUsageBadge } from './tile-chrome.js';
+import { createTileElement, updateTileHeader, renderBody } from './tile-chrome.js';
 import { createTerminalSession } from './terminal-view.js';
-import { insertNode, removeNode, buildFromOrder } from './split-layout.js';
+import { insertNode, removeNode, buildFromOrder, fitsQuadrantGrid } from './split-layout.js';
 
-const MAX_TILES = 6;
-const USAGE_POLL_MS = 15000;
+// Four tiles max, arranged as at most a 2x2 quadrant grid: no row and no
+// column ever holds more than two consoles.
+const MAX_TILES = 4;
 const SPLIT_MIN_RATIO = 0.15;
 const SPLIT_MAX_RATIO = 0.85;
 
@@ -37,28 +38,6 @@ let unrestored = [];
 
 const tileEls = new Map(); // id -> entry from createTileElement
 const sessions = new Map(); // id -> terminal session controller
-let usageIntervalId = null;
-
-// Reads the pane's own transcript-derived usage (main process, read-only) and
-// updates its header badge. Silently leaves the badge hidden on any failure —
-// a missing/unparseable transcript is expected for non-Claude commands.
-async function refreshUsage(record) {
-  if (record.type !== 'terminal' || record.status !== 'running' || !record.cwd) return;
-  const entry = tileEls.get(record.id);
-  if (!entry) return;
-  let usage = null;
-  try {
-    usage = await window.orbit.getUsage(record.id, record.cwd);
-  } catch {
-    usage = null;
-  }
-  // Tile may have closed while the lookup was in flight.
-  if (tileEls.get(record.id) === entry) setUsageBadge(entry, usage);
-}
-
-function refreshAllUsage() {
-  for (const tile of tiles) refreshUsage(tile);
-}
 
 export function setTerminalTheme(theme, font = null) {
   terminalTheme = theme;
@@ -134,8 +113,6 @@ function setActive(id) {
   if (activeId === id) return;
   activeId = id;
   render();
-  const record = tiles.find((t) => t.id === id);
-  if (record) refreshUsage(record);
 }
 
 const handlers = {
@@ -330,6 +307,10 @@ function render() {
   gridEl.hidden = isEmpty || layoutMode !== 'grid';
   splitEl.hidden = isEmpty || layoutMode !== 'split';
 
+  // Drives the grid's column/row template (styles.css) so the tiles always
+  // fill the panel instead of leaving a half-empty auto-fit track.
+  gridEl.dataset.count = String(tiles.length);
+
   const disabled = tiles.length >= MAX_TILES;
   const disabledTitle = disabled ? `Maximum of ${MAX_TILES} terminals reached` : 'Add terminal';
 
@@ -371,16 +352,6 @@ function render() {
 async function spawnSession(record) {
   const hadPriorSessionId = !!record.claudeSessionId;
 
-  // A fresh pty is about to be created for this pane id. Drop any stale
-  // usage-tracker claim first, since the id is a renderer-local counter that
-  // resets on reload/restore and could otherwise be reused onto an old,
-  // unrelated transcript file.
-  try {
-    await window.orbit.resetUsage(record.id, record.cwd);
-  } catch {
-    // best-effort; usage badge just stays uncached
-  }
-
   const session = createTerminalSession({
     id: record.id,
     cwd: record.cwd,
@@ -416,7 +387,6 @@ async function spawnSession(record) {
   record.status = 'running';
   render();
   persistSessions();
-  refreshUsage(record);
 
   const entry = tileEls.get(record.id);
   const hint = hadPriorSessionId && !result.resumed
@@ -450,8 +420,15 @@ export async function addTerminal(anchor) {
   tiles.splice(insertIndex, 0, record);
 
   if (layoutMode === 'split') {
-    if (anchor && anchorIndex !== -1 && splitRoot) {
-      splitRoot = insertNode(splitRoot, anchor.id, anchor.edgeSide, record.id);
+    // An edge insert can ask for a shape deeper than 2x2 (e.g. splitting a
+    // pane that is already half of a split). Fall back to the deterministic
+    // quadrant fold rather than honouring it.
+    const next =
+      anchor && anchorIndex !== -1 && splitRoot
+        ? insertNode(splitRoot, anchor.id, anchor.edgeSide, record.id)
+        : null;
+    if (next && fitsQuadrantGrid(next)) {
+      splitRoot = next;
     } else {
       foldSplitRoot();
     }
@@ -496,9 +473,7 @@ export async function addTerminal(anchor) {
   persistSessions();
 
   await spawnSession(record);
-  if (record.status === 'running') {
-    refreshUsage(record);
-  } else if (record.status === 'failed') {
+  if (record.status === 'failed') {
     restorePreviousActive();
   }
 }
@@ -582,9 +557,6 @@ export function renderConsolePanel(container, { layoutMode: initialMode } = {}) 
   layoutMode = initialMode === 'split' ? 'split' : 'grid';
   splitRoot = null;
   lastRenderedSplitRoot = undefined;
-
-  if (usageIntervalId) clearInterval(usageIntervalId);
-  usageIntervalId = setInterval(refreshAllUsage, USAGE_POLL_MS);
 
   const panel = document.createElement('div');
   panel.className = 'console-panel-inner';

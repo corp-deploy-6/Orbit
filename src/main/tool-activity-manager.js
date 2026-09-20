@@ -1,6 +1,5 @@
-// Tails a live pane's Claude Code transcript (the same JSONL usage-tracker.js
-// reads) and reports which repo files the session just touched, so the renderer
-// can pulse the matching graph nodes.
+// Tails a live pane's Claude Code transcript and reports which repo files the
+// session just touched, so the renderer can pulse the matching graph nodes.
 //
 // Polls rather than fs.watch: a fresh session's transcript doesn't exist yet
 // when the pty spawns, and polling handles not-yet-created / appended /

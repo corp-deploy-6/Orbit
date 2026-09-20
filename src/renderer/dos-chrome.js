@@ -2,6 +2,10 @@
 // rendered visibly under the dos-nc theme (dos-theme.css); F-key shortcuts are
 // inert otherwise.
 
+// Labels are capped at 8 characters. Each cell is the key number plus the
+// label in the 8x16 VGA font (76px for F1-F9, 84px for the two-digit keys),
+// so all 12 slots at full width need 936px of content width to stay
+// untruncated -- the width main.js currently pins the window to.
 const FKEYS = [
   { n: 1, label: 'Console', view: 'console' },
   { n: 2, label: 'Settings', view: 'settings' },
@@ -13,6 +17,8 @@ const FKEYS = [
   { n: 8, label: 'Close', action: 'closeTile' },
   { n: 9, label: '' },
   { n: 10, label: '' },
+  { n: 11, label: '' },
+  { n: 12, label: 'HELP' },
 ];
 
 export function renderDosChrome(fKeyBarEl, { onNavigate, onAction }) {

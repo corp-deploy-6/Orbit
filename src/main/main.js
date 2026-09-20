@@ -5,7 +5,6 @@ import { registerPtyHandlers, killAllSessions } from './pty-manager.js';
 import { registerDialogHandlers } from './dialog-manager.js';
 import { registerSettingsHandlers } from './settings-store.js';
 import { registerSessionHandlers } from './session-store.js';
-import { registerUsageHandlers } from './usage-tracker.js';
 import { registerShellHandlers } from './shell-manager.js';
 import { registerGraftGraphHandlers } from './graft-graph-manager.js';
 import { stopAllToolWatches } from './tool-activity-manager.js';
@@ -16,9 +15,17 @@ if (started) {
 }
 
 const createWindow = () => {
+  // TEMPORARY: width pinned to the 936px the full 12-key F-bar needs so its
+  // labels never truncate while we eyeball the bar. useContentSize makes 936
+  // the renderer's width rather than the outer frame's; minWidth/maxWidth are
+  // frame sizes in Electron and would clamp the content narrower, so the size
+  // is held with resizable: false instead. Drop these three to go back to a
+  // resizable window.
   const mainWindow = new BrowserWindow({
-    width: 1000,
+    width: 936,
     height: 700,
+    useContentSize: true,
+    resizable: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },
@@ -66,7 +73,6 @@ app.whenReady().then(() => {
   registerDialogHandlers();
   registerSettingsHandlers();
   registerSessionHandlers();
-  registerUsageHandlers();
   registerShellHandlers();
   registerGraftGraphHandlers();
   createWindow();

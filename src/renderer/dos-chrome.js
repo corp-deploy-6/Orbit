@@ -8,7 +8,7 @@
 // untruncated -- the width main.js currently pins the window to.
 const FKEYS = [
   { n: 1, label: 'Console', view: 'console' },
-  { n: 2, label: 'Settings', view: 'settings' },
+  { n: 2, label: '' },
   { n: 3, label: '' },
   { n: 4, label: '' },
   { n: 5, label: 'NewTerm', action: 'newTerminal' },
@@ -17,7 +17,7 @@ const FKEYS = [
   { n: 8, label: 'Close', action: 'closeTile' },
   { n: 9, label: '' },
   { n: 10, label: '' },
-  { n: 11, label: '' },
+  { n: 11, label: 'Settings', view: 'settings' },
   { n: 12, label: 'Help', view: 'help' },
 ];
 

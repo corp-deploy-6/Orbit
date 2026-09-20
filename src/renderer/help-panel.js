@@ -12,7 +12,7 @@ const SECTIONS = [
     heading: 'The Console screen',
     body: [
       'The Console is a tiled terminal grid, up to four terminals at once arranged as a 2x2 quadrant layout, or as a single split layout — pick either from Settings.',
-      'F5 opens a new terminal tile; F8 closes whichever tile is focused. F1 and F2 switch between the Console and Settings views.',
+      'F5 opens a new terminal tile; F8 closes whichever tile is focused. F1 and F11 switch between the Console and Settings views.',
     ],
   },
   {

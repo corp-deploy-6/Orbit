@@ -229,6 +229,13 @@ function mountSplitDom(node, parentPane, beforeEl) {
 function patchSplitDom(oldNode, newNode, existingEl, parentPane) {
   if (oldNode === newNode) return;
 
+  // foldSplitRoot() (buildFromOrder) never reuses object references, even for
+  // a tile whose position didn't change — so an unrelated ancestor's fast
+  // path can recurse all the way down to two leaf objects that represent the
+  // *same* tile. Treat that as the no-op it actually is: existingEl already
+  // is that tile's element, in the right place.
+  if (oldNode.type === 'leaf' && newNode.type === 'leaf' && oldNode.tileId === newNode.tileId) return;
+
   if (newNode.type === 'split' && (newNode.children[0] === oldNode || newNode.children[1] === oldNode)) {
     // insertNode: oldNode (a leaf) became one child of a new split beside a
     // brand-new leaf. Attach the shell first, then move the old leaf in.
@@ -265,9 +272,13 @@ function patchSplitDom(oldNode, newNode, existingEl, parentPane) {
 
   // Structural mismatch (e.g. a root direction flip from buildFromOrder):
   // mount the new subtree live, moving every existing tile element in place,
-  // then drop the emptied old subtree.
+  // then drop the emptied old subtree. Only drop it if it's still parked
+  // where it started, though: when oldNode is itself a leaf whose tile
+  // persists in newNode, mountSplitDom's walk over newNode will have moved
+  // that very element (existingEl) into its new position already, and
+  // removing it here would delete a live tile instead of an emptied wrapper.
   mountSplitDom(newNode, parentPane, existingEl);
-  existingEl.remove();
+  if (existingEl.parentElement === parentPane) existingEl.remove();
 }
 
 // Drags the divider between two panes. Style writes (and therefore the

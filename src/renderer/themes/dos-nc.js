@@ -15,6 +15,10 @@ export const dosNc = {
     '--accent': '#FFFF55',
     '--accent-strong': '#FFFF55',
     '--accent-dim': '#AA5500',
+    // Graph pulse/particle colour. Must differ from every node base colour
+    // (--accent, --accent-secondary, --text-secondary) or a lit node fades to
+    // exactly its own colour and nothing appears to happen.
+    '--graph-pulse': '#FFFFFF',
     '--accent-secondary': '#55FF55',
     '--focus-ring': '#FFFFFF',
     '--danger': '#FF5555',

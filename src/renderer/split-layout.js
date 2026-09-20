@@ -58,20 +58,44 @@ export function removeNode(root, tileId) {
   return go(root);
 }
 
-// Deterministically rebuilds a tree from flat tile-id order: sequential
-// right/bottom chain, alternating direction at each level. Used whenever the
-// tree is derived rather than incrementally edited (mode switch, restore) —
-// see issue #66 decision to never persist tree shape.
+// Deterministically rebuilds a tree from flat tile-id order as a quadrant
+// layout: two across, two down, never more. Used whenever the tree is derived
+// rather than incrementally edited (mode switch, restore) -- see issue #66
+// decision to never persist tree shape.
 export function buildFromOrder(tileIds) {
-  if (!tileIds.length) return null;
-
-  function chain(ids, direction) {
-    if (ids.length === 1) return createLeaf(ids[0]);
-    const nextDirection = direction === 'row' ? 'column' : 'row';
-    return createSplit(direction, [createLeaf(ids[0]), chain(ids.slice(1), nextDirection)]);
+  const [a, b, c, d] = tileIds;
+  switch (tileIds.length) {
+    case 0:
+      return null;
+    case 1:
+      return createLeaf(a);
+    case 2:
+      return createSplit('row', [createLeaf(a), createLeaf(b)]);
+    case 3:
+      return createSplit('column', [
+        createSplit('row', [createLeaf(a), createLeaf(b)]),
+        createLeaf(c),
+      ]);
+    default:
+      return createSplit('column', [
+        createSplit('row', [createLeaf(a), createLeaf(b)]),
+        createSplit('row', [createLeaf(c), createLeaf(d)]),
+      ]);
   }
+}
 
-  return chain(tileIds, 'row');
+// True when the tree stays within the 2x2 cap: at most two splits deep, and a
+// split's child split must run the other way (a row inside a row would put
+// three tiles side by side). Guards incremental edge inserts, which can
+// otherwise nest arbitrarily deep.
+export function fitsQuadrantGrid(node, depth = 0) {
+  if (!node || node.type === 'leaf') return true;
+  if (depth >= 2) return false;
+  return node.children.every(
+    (child) =>
+      child.type === 'leaf' ||
+      (child.direction !== node.direction && fitsQuadrantGrid(child, depth + 1))
+  );
 }
 
 // Left-to-right / top-to-bottom tile id order, inverse of buildFromOrder.

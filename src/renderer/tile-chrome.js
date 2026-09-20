@@ -32,12 +32,7 @@ export function createTileElement(tile, { onRename, onClose, onFocus, onAddSide 
     onRename?.(tile.id, value);
   });
 
-  const usageBadge = document.createElement('span');
-  usageBadge.className = 'tile-usage';
-  usageBadge.hidden = true;
-
   header.appendChild(label);
-  header.appendChild(usageBadge);
 
   const closeBtn = document.createElement('button');
   closeBtn.className = 'tile-close';
@@ -62,30 +57,11 @@ export function createTileElement(tile, { onRename, onClose, onFocus, onAddSide 
     el,
     body,
     label,
-    usageBadge,
     terminalMounted: false,
     setAddDisabled: (disabled, title) => affordance.setDisabled(disabled, title),
   };
   renderBody(entry, tile);
   return entry;
-}
-
-function formatCost(usd) {
-  if (usd < 0.01) return '<$0.01';
-  return `$${usd.toFixed(2)}`;
-}
-
-// Shows/hides the per-pane usage indicator. `usage` is whatever
-// window.orbit.getUsage() resolved to: null when no matching transcript
-// could be found/parsed for this pane (indicator stays hidden), or
-// { costUSD } otherwise. Terminal tiles only.
-export function setUsageBadge(entry, usage) {
-  if (!usage || typeof usage.costUSD !== 'number') {
-    entry.usageBadge.hidden = true;
-    return;
-  }
-  entry.usageBadge.textContent = formatCost(usage.costUSD);
-  entry.usageBadge.hidden = false;
 }
 
 export function updateTileHeader(entry, tile) {

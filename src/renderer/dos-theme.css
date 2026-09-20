@@ -188,10 +188,6 @@
   color: #000;
 }
 
-[data-theme='dos-nc'] .split-divider {
-  background: var(--border-subtle);
-}
-
 [data-theme='dos-nc'] .edge-zone.hovered,
 [data-theme='dos-nc'] .edge-plus-btn {
   box-shadow: none;

@@ -213,7 +213,7 @@ body.graph-interact #app * {
 
 .split-divider {
   flex: none;
-  background: var(--border-subtle);
+  background: transparent;
   position: relative;
   touch-action: none;
 }
@@ -224,12 +224,12 @@ body.graph-interact #app * {
 }
 
 .split-divider-row {
-  width: 6px;
+  width: 10px;
   cursor: col-resize;
 }
 
 .split-divider-column {
-  height: 6px;
+  height: 10px;
   cursor: row-resize;
 }
 

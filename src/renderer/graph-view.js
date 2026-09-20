@@ -18,21 +18,34 @@ const KIND_COLOR_VARS = {
 // under 60fps: re-applying nodeColor rebuilds every node's material. Raised
 // from the original 700ms — a colour-only fade on small spheres in a
 // translucent full-window backdrop is easy to miss (#100).
-const PULSE_MS = 1200;
+// PULSE_MS also has to outlast a particle's flight (1/PARTICLE_SPEED frames,
+// ~1.4s at 60fps) or an edge goes dark with its dot still travelling it.
+const PULSE_MS = 1600;
 const PULSE_TICK_MS = 66;
-const PULSE_COLOR_VAR = '--accent-strong';
+// Its own token, not --accent-strong: in the DOS theme --accent-strong and
+// --accent are both #FFFF55, so a lit file node faded to exactly its own
+// colour and the whole pulse was invisible.
+const PULSE_COLOR_VAR = '--graph-pulse';
 const LIT_LINK_WIDTH = 1.8;
+
+// A travelling dot is emitted along every lit edge — the signal actually moves
+// from parent to child, which reads at a glance where a colour fade on a small
+// sphere does not. Speed is fraction-of-link-length per frame.
+const PARTICLE_WIDTH = 2.5;
+const PARTICLE_SPEED = 0.012;
 
 // How far apart queued steps play, and how many can be queued at once (older
 // ones dropped) so a burst of activity doesn't play back for minutes.
 const STEP_INTERVAL_MS = 250;
 const MAX_QUEUED_STEPS = 40;
 
-// With no agent activity to show, the backdrop walks a random short path this
-// often so it always reads as alive. Real activity wins: an idle walk is
-// skipped whenever anything is already lit or queued.
+// With no agent activity to show, the backdrop fires a signal from a root node
+// (an entry point — no inbound edges) outward along directed edges to a random
+// target this often, so it always reads as alive. Real activity wins: an idle
+// firing is skipped whenever anything is already lit or queued.
 const IDLE_TRACE_MS = 5000;
-const IDLE_PATH_HOPS = 3;
+const IDLE_PATH_HOPS = 5;
+const IDLE_PATH_ATTEMPTS = 6;
 
 function readToken(name, fallback) {
   const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -103,10 +116,12 @@ export function createGraphView() {
   // than inventing one). Keyed both directions so lookup doesn't care which
   // file came first.
   let linksByPair = new Map(); // "aId|bId" -> link object
-  // Every node and edge, not just the file ones: the idle walk roams the whole
+  // Every node and edge, not just the file ones: idle firings roam the whole
   // graph, where real activity only ever lights files it can resolve by path.
+  // Outbound-only, so a signal travels the edge the way the particle does.
   let nodesById = new Map(); // node id -> node
-  let neighbors = new Map(); // node id -> [{ node, link }]
+  let outboundById = new Map(); // node id -> [{ node, link }]
+  let rootNodes = []; // entry points: outbound edges, no inbound ones
   const pulses = new Map(); // node -> deadline (ms)
   const linkPulses = new Map(); // link -> deadline (ms)
   let pulseTimerId = null;
@@ -143,6 +158,14 @@ export function createGraphView() {
 
   function linkWidthFor(link) {
     return linkPulses.has(link) ? LIT_LINK_WIDTH : 0;
+  }
+
+  // Lights an edge: the colour/width pulse plus a dot that travels it. The
+  // particle animates itself frame by frame once emitted, independently of
+  // the pulse tick's accessor re-application.
+  function fireLink(link, deadline) {
+    linkPulses.set(link, deadline);
+    graphInstance?.emitParticle(link);
   }
 
   function stopPulseTick() {
@@ -185,7 +208,7 @@ export function createGraphView() {
 
     if (kind === 'idle') {
       pulses.set(step.node, deadline);
-      if (step.link) linkPulses.set(step.link, deadline);
+      if (step.link) fireLink(step.link, deadline);
       startPulseTick();
       return;
     }
@@ -197,7 +220,7 @@ export function createGraphView() {
       const lastNode = lastNodeBySession.get(sessionId);
       if (lastNode && lastNode !== node) {
         const link = linksByPair.get(`${lastNode.id}|${node.id}`);
-        if (link) linkPulses.set(link, deadline);
+        if (link) fireLink(link, deadline);
       }
       lastNodeBySession.set(sessionId, node);
       startPulseTick();
@@ -212,7 +235,7 @@ export function createGraphView() {
     for (let i = 0; i < matched.length; i++) {
       for (let j = i + 1; j < matched.length; j++) {
         const link = linksByPair.get(`${matched[i].id}|${matched[j].id}`);
-        if (link) linkPulses.set(link, deadline);
+        if (link) fireLink(link, deadline);
       }
     }
     startPulseTick();
@@ -233,32 +256,44 @@ export function createGraphView() {
     return list[Math.floor(Math.random() * list.length)];
   }
 
-  // Walks a random unvisited-neighbour path of up to IDLE_PATH_HOPS edges and
-  // queues it as ordinary steps, so it paces, fades and clears through exactly
-  // the same machinery as a real trace.
+  // Fires from a random root outward along directed edges, up to IDLE_PATH_HOPS
+  // of them, and queues the hops as ordinary steps so they pace, fade and clear
+  // through exactly the same machinery as a real trace.
   function queueIdlePath() {
-    if (disposed || paused || !graphInstance || !neighbors.size) return;
+    if (disposed || paused || !graphInstance || !rootNodes.length) return;
     // Real activity owns the backdrop: anything lit or pending means skip.
     if (stepQueue.length || pulses.size || linkPulses.size) return;
 
-    const startId = randomFrom([...neighbors.keys()]);
-    let current = nodesById.get(startId);
-    if (!current) return;
+    // Best of a few attempts: several roots (the vite configs) have one edge
+    // to an external package and nothing beyond it, so an unfiltered pick
+    // spends most firings on a single dull hop.
+    let best = [];
+    for (let attempt = 0; attempt < IDLE_PATH_ATTEMPTS; attempt++) {
+      const steps = walkFromRoot();
+      if (steps.length > best.length) best = steps;
+      if (best.length >= IDLE_PATH_HOPS + 1) break;
+    }
+    if (best.length < 2) return; // a lone node with no outbound edge isn't a path
+
+    stepQueue.push(...best);
+    startStepTimer();
+  }
+
+  function walkFromRoot() {
+    let current = randomFrom(rootNodes);
+    if (!current) return [];
 
     const visited = new Set([current.id]);
     const steps = [{ kind: 'idle', node: current }];
     for (let hop = 0; hop < IDLE_PATH_HOPS; hop++) {
-      const options = (neighbors.get(current.id) || []).filter((n) => !visited.has(n.node.id));
-      if (!options.length) break;
+      const options = (outboundById.get(current.id) || []).filter((n) => !visited.has(n.node.id));
+      if (!options.length) break; // dead end: the signal stops where the graph does
       const next = randomFrom(options);
       visited.add(next.node.id);
       steps.push({ kind: 'idle', node: next.node, link: next.link });
       current = next.node;
     }
-    if (steps.length < 2) return; // a lone node with no unvisited edge isn't a path
-
-    stepQueue.push(...steps);
-    startStepTimer();
+    return steps;
   }
 
   function startIdleTimer() {
@@ -299,7 +334,8 @@ export function createGraphView() {
     nodesByLowerPath = new Map();
     linksByPair = new Map();
     nodesById = new Map();
-    neighbors = new Map();
+    outboundById = new Map();
+    rootNodes = [];
     resizeObserver?.disconnect();
     resizeObserver = null;
     graphInstance?._destructor();
@@ -344,18 +380,22 @@ export function createGraphView() {
       linksByPair.set(`${link.target}|${link.source}`, link);
     }
 
-    // Undirected adjacency over the whole graph, read in the same pre-mutation
+    // Directed adjacency over the whole graph, read in the same pre-mutation
     // window as linksByPair above (source/target are still id strings here).
     for (const node of graphData.nodes) nodesById.set(node.id, node);
+    const hasInbound = new Set();
     for (const link of graphData.links) {
       const source = nodesById.get(link.source);
       const target = nodesById.get(link.target);
       if (!source || !target || source === target) continue;
-      if (!neighbors.has(source.id)) neighbors.set(source.id, []);
-      if (!neighbors.has(target.id)) neighbors.set(target.id, []);
-      neighbors.get(source.id).push({ node: target, link });
-      neighbors.get(target.id).push({ node: source, link });
+      if (!outboundById.has(source.id)) outboundById.set(source.id, []);
+      outboundById.get(source.id).push({ node: target, link });
+      hasInbound.add(target.id);
     }
+    rootNodes = [...outboundById.keys()].filter((id) => !hasInbound.has(id)).map((id) => nodesById.get(id));
+    // A fully cyclic graph has no inbound-free node; firing from any node with
+    // outbound edges still reads as a signal, just not from an entry point.
+    if (!rootNodes.length) rootNodes = [...outboundById.keys()].map((id) => nodesById.get(id));
 
     // 'orbit' (not the library default 'trackball'): autoRotate below only exists
     // on OrbitControls; TrackballControls silently ignores the flag.
@@ -365,6 +405,11 @@ export function createGraphView() {
       .nodeColor(nodeColorFor)
       .linkColor(linkColorFor)
       .linkWidth(linkWidthFor)
+      // No standing linkDirectionalParticles count — every dot on screen comes
+      // from an explicit emitParticle(), so the graph is still when nothing fires.
+      .linkDirectionalParticleWidth(PARTICLE_WIDTH)
+      .linkDirectionalParticleSpeed(PARTICLE_SPEED)
+      .linkDirectionalParticleColor(() => readToken(PULSE_COLOR_VAR, '#ffffff'))
       .width(containerEl.clientWidth)
       .height(containerEl.clientHeight)
       .cooldownTime(4000)

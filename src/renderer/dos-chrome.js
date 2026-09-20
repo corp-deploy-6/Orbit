@@ -7,11 +7,11 @@
 // so all 12 slots at full width need 936px of content width to stay
 // untruncated -- the width main.js currently pins the window to.
 const FKEYS = [
-  { n: 1, label: 'Console', view: 'console' },
-  { n: 2, label: '' },
+  { n: 1, label: 'Session', view: 'session' },
+  { n: 2, label: 'Add', action: 'addSession' },
   { n: 3, label: '' },
   { n: 4, label: '' },
-  { n: 5, label: 'NewTerm', action: 'newTerminal' },
+  { n: 5, label: '' },
   { n: 6, label: '' },
   { n: 7, label: '' },
   { n: 8, label: 'Close', action: 'closeTile' },

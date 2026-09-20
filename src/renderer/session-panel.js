@@ -1,4 +1,4 @@
-// Console tile grid mechanics: in-memory terminal tile records, add/close/
+// Session tile grid mechanics: in-memory terminal tile records, add/close/
 // rename, auto-fit grid, and the per-tile lifecycle (folder-picker -> pty
 // spawn). The graph is no longer a tile type — it's a single full-window
 // backdrop instance owned by renderer.js (see graph-view.js).
@@ -55,7 +55,7 @@ export function setTerminalOpacity(value) {
   for (const session of sessions.values()) session.setOpacity(value);
 }
 
-export function forceRedrawConsole() {
+export function forceRedrawSession() {
   for (const session of sessions.values()) session.forceRedraw();
   const activeSession = sessions.get(activeId);
   activeSession?.focus();
@@ -468,7 +468,7 @@ export async function addTerminal(anchor) {
     }
   }
   // Active immediately on creation, not just once the pty is running —
-  // otherwise the new tile has no accent ring and forceRedrawConsole()
+  // otherwise the new tile has no accent ring and forceRedrawSession()
   // keeps focusing the previously-active session until the user clicks in.
   // If creation doesn't pan out (picker cancelled, closed mid-pick, or the
   // spawn fails), restore whichever tile was active before rather than
@@ -579,7 +579,7 @@ export function setConsoleLayoutMode(mode) {
   render();
 }
 
-export function renderConsolePanel(container, { layoutMode: initialMode } = {}) {
+export function renderSessionPanel(container, { layoutMode: initialMode } = {}) {
   container.innerHTML = '';
   for (const session of sessions.values()) session.dispose();
   sessions.clear();
@@ -593,7 +593,7 @@ export function renderConsolePanel(container, { layoutMode: initialMode } = {}) 
   lastRenderedSplitRoot = undefined;
 
   const panel = document.createElement('div');
-  panel.className = 'console-panel-inner';
+  panel.className = 'session-panel-inner';
 
   gridEl = document.createElement('div');
   gridEl.className = 'tile-grid';

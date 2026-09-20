@@ -1,11 +1,11 @@
 // Pure split-tree data model: no DOM, no tile lifecycle. A tree of tile ids
-// arranged for nested-flex rendering (console-panel.js owns the DOM side).
+// arranged for nested-flex rendering (session-panel.js owns the DOM side).
 //
 // leaf:  { type: 'leaf', tileId }
 // split: { type: 'split', direction: 'row'|'column', children: [node, node], sizes: [a, b] }
 //
 // Every function here returns a new tree along the path that changed and
-// reuses untouched subtrees as-is, so console-panel.js can diff old vs. new
+// reuses untouched subtrees as-is, so session-panel.js can diff old vs. new
 // root by reference to know whether the DOM needs restructuring.
 
 export function createLeaf(tileId) {

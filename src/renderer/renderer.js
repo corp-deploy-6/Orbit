@@ -12,6 +12,7 @@ import {
   closeActiveTile,
 } from './console-panel.js';
 import { renderSettingsPanel } from './settings-panel.js';
+import { renderHelpPanel } from './help-panel.js';
 import { createGraphView } from './graph-view.js';
 import { THEMES, DEFAULT_THEME_ID, applyTheme } from './themes/index.js';
 
@@ -40,6 +41,7 @@ async function main() {
 
   const consolePanelEl = document.getElementById('console-panel');
   const settingsPanelEl = document.getElementById('settings-panel');
+  const helpPanelEl = document.getElementById('help-panel');
   const dosFKeyBarEl = document.getElementById('dos-fkeybar');
   const graphBackdropEl = document.getElementById('graph-backdrop');
 
@@ -95,8 +97,9 @@ async function main() {
   function showView(view) {
     consolePanelEl.hidden = view !== 'console';
     settingsPanelEl.hidden = view !== 'settings';
+    helpPanelEl.hidden = view !== 'help';
     currentView = view;
-    renderDosChrome(dosFKeyBarEl, { onNavigate: showView, onAction: onDosAction });
+    renderDosChrome(dosFKeyBarEl, { onNavigate: showView, onAction: onDosAction, currentView });
     if (view === 'settings') {
       renderSettingsPanel(settingsPanelEl, {
         opacity,
@@ -105,6 +108,8 @@ async function main() {
         consoleLayoutMode,
         onSelectConsoleLayoutMode,
       });
+    } else if (view === 'help') {
+      renderHelpPanel(helpPanelEl);
     } else if (view === 'console') {
       forceRedrawConsole();
     }

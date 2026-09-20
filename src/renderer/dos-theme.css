@@ -65,7 +65,8 @@
   color: #000;
 }
 
-.dos-fkey:hover:not(.inert) .dos-fkey-label {
+.dos-fkey:hover:not(.inert) .dos-fkey-label,
+.dos-fkey.active .dos-fkey-label {
   background: #000;
   color: #00aaaa;
 }

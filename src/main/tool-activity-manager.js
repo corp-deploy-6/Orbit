@@ -58,7 +58,38 @@ function readNewLines(watch) {
   return text.subarray(0, lastBreak).toString('utf8').split('\n');
 }
 
-function touchedPathsIn(line) {
+// graft's own MCP tool names, and the CLI verbs when invoked via Bash/PowerShell.
+const GRAFT_MCP_NAME_RE = /^mcp__graft__graft_(find_code|find_all|file_api|repo_map|trace_calls)$/;
+const GRAFT_CLI_RE = /\bgraft\s+(ask|grep|callers|skeleton)\b/;
+
+// A repo-relative-looking path, forward- or back-slashed, with an optional
+// trailing "L12" / "L12-L34" line reference (graft's format) that the char
+// class itself excludes by not containing ':'.
+const PATH_CANDIDATE_RE = /[\w./\\-]+\.(?:js|mjs|cjs|css|html|json|md)\b/g;
+
+// True for a tool_use whose result is worth mining for file paths that the
+// agent surfaced without directly editing (a graft query, or a Grep/Glob).
+function isQueryToolUse(block) {
+  if (GRAFT_MCP_NAME_RE.test(block.name)) return true;
+  if ((block.name === 'Bash' || block.name === 'PowerShell') && GRAFT_CLI_RE.test(block.input?.command || '')) {
+    return true;
+  }
+  return block.name === 'Grep' || block.name === 'Glob';
+}
+
+function resultText(content) {
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) return content.map((block) => block?.text || '').join('\n');
+  return '';
+}
+
+// Raw (not yet repo-relativized) steps found in one transcript line, in
+// document order. `pendingQueryIds` is the per-session set of tool_use ids
+// awaiting their tool_result, mutated in place: an assistant line adds to it,
+// the matching user/tool_result line consumes from it. A step from a query
+// result carries every path candidate found in that one result as one step,
+// since they were surfaced together, not touched in sequence.
+function stepsInLine(line, pendingQueryIds) {
   let entry;
   try {
     entry = JSON.parse(line);
@@ -66,15 +97,38 @@ function touchedPathsIn(line) {
     return [];
   }
   const content = entry?.message?.content;
-  if (entry.type !== 'assistant' || !Array.isArray(content)) return [];
+  if (!Array.isArray(content)) return [];
 
-  const found = [];
-  for (const block of content) {
-    if (block?.type !== 'tool_use') continue;
-    const touched = block.input?.file_path ?? block.input?.notebook_path;
-    if (typeof touched === 'string' && touched) found.push(touched);
+  if (entry.type === 'assistant') {
+    const steps = [];
+    for (const block of content) {
+      if (block?.type !== 'tool_use') continue;
+      const touched = block.input?.file_path ?? block.input?.notebook_path;
+      if (typeof touched === 'string' && touched) {
+        steps.push({ kind: 'touch', paths: [touched] });
+        continue;
+      }
+      if (isQueryToolUse(block)) pendingQueryIds.add(block.id);
+    }
+    return steps;
   }
-  return found;
+
+  if (entry.type === 'user') {
+    const steps = [];
+    for (const block of content) {
+      if (block?.type !== 'tool_result' || !pendingQueryIds.has(block.tool_use_id)) continue;
+      pendingQueryIds.delete(block.tool_use_id);
+      const paths = resultText(block.content).match(PATH_CANDIDATE_RE) || [];
+      if (paths.length) steps.push({ kind: 'query', paths });
+    }
+    return steps;
+  }
+
+  return [];
+}
+
+function sameFileList(a, b) {
+  return a.length === b.length && a.every((file, i) => file === b[i]);
 }
 
 // Absolute (or cwd-relative) path -> repo-relative POSIX, matching the `path`
@@ -96,17 +150,20 @@ function poll(sessionId, watch) {
   if (!lines.length) return;
 
   const root = graphRepoRoot();
-  const paths = new Set();
+  const steps = [];
   for (const line of lines) {
     if (!line.trim()) continue;
-    for (const touched of touchedPathsIn(line)) {
-      const rel = toRepoRelative(touched, watch.cwd, root);
-      if (rel) paths.add(rel);
+    for (const raw of stepsInLine(line, watch.pendingQueryIds)) {
+      const files = [...new Set(raw.paths.map((p) => toRepoRelative(p, watch.cwd, root)).filter(Boolean))];
+      if (!files.length) continue;
+      const prev = steps[steps.length - 1];
+      if (prev && prev.kind === raw.kind && sameFileList(prev.files, files)) continue;
+      steps.push({ kind: raw.kind, files });
     }
   }
-  if (!paths.size) return;
+  if (!steps.length) return;
 
-  watch.sender.send('toolActivity:file', { sessionId, paths: [...paths] });
+  watch.sender.send('toolActivity:file', { sessionId, steps });
 }
 
 export function startToolWatch({ sessionId, cwd, claudeSessionId, sender }) {
@@ -124,7 +181,15 @@ export function startToolWatch({ sessionId, cwd, claudeSessionId, sender }) {
     offset = 0; // not written yet — a fresh session starts empty anyway
   }
 
-  const watch = { transcriptPath, cwd, sender, offset, remainder: Buffer.alloc(0), timer: null };
+  const watch = {
+    transcriptPath,
+    cwd,
+    sender,
+    offset,
+    remainder: Buffer.alloc(0),
+    timer: null,
+    pendingQueryIds: new Set(),
+  };
   watch.timer = setInterval(() => {
     try {
       poll(sessionId, watch);

@@ -55,7 +55,7 @@ async function main() {
   setTerminalTheme(theme.terminal, theme.terminalFont);
   restoreSessions();
 
-  window.orbit.onToolActivity((paths) => backdrop.pulse(paths));
+  window.orbit.onToolActivity((payload) => backdrop.trace(payload.sessionId, payload.steps));
 
   async function onOpacityChange(key, value) {
     opacity[key] = value;
@@ -115,37 +115,26 @@ async function main() {
     }
   }
 
-  // Pause the backdrop's render loop when the window is hidden/minimized
-  // (document.visibilitychange) or unfocused (window blur), and resume only
-  // once it's both visible and focused again. Tracking the two conditions
-  // separately and gating on the combined "should play" value (rather than
-  // pausing/resuming on every individual event) means a quick blur->focus
-  // that never actually loses visibility collapses to at most one pause and
-  // one resume call, never more.
-  let isHidden = document.hidden;
-  let isFocused = document.hasFocus();
-  let playing = null;
+  // Pause the backdrop's render loop only when the window is actually hidden
+  // (minimized, or fully occluded by another window — Chromium/Electron's
+  // native occlusion tracking marks the page hidden for that case too), not
+  // merely unfocused. The backdrop's whole point is ambient visibility of
+  // agent activity while the user works in another window, so pausing (and
+  // clearing pulses) on blur silently dropped every pulse for that exact
+  // scenario (#100) — the one time the feature matters most.
+  let hidden = document.hidden;
 
   function syncPlayback() {
-    const shouldPlay = !isHidden && isFocused;
-    if (shouldPlay === playing) return;
-    playing = shouldPlay;
-    if (shouldPlay) backdrop.resume();
-    else backdrop.pause();
+    const nowHidden = document.hidden;
+    if (nowHidden === hidden) return;
+    hidden = nowHidden;
+    if (hidden) backdrop.pause();
+    else backdrop.resume();
   }
 
-  document.addEventListener('visibilitychange', () => {
-    isHidden = document.hidden;
-    syncPlayback();
-  });
+  document.addEventListener('visibilitychange', syncPlayback);
   window.addEventListener('blur', () => {
-    isFocused = false;
     document.body.classList.remove('graph-interact');
-    syncPlayback();
-  });
-  window.addEventListener('focus', () => {
-    isFocused = true;
-    syncPlayback();
   });
   syncPlayback();
 

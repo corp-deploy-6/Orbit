@@ -80,7 +80,7 @@
 }
 
 /* Panels */
-[data-theme='dos-nc'] .console-panel-inner,
+[data-theme='dos-nc'] .session-panel-inner,
 [data-theme='dos-nc'] .settings-panel-inner {
   padding: 16px;
   gap: 16px;

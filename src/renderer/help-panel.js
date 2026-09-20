@@ -9,10 +9,10 @@ const SECTIONS = [
     ],
   },
   {
-    heading: 'The Console screen',
+    heading: 'The Session screen',
     body: [
-      'The Console is a tiled terminal grid, up to four terminals at once arranged as a 2x2 quadrant layout, or as a single split layout — pick either from Settings.',
-      'F5 opens a new terminal tile; F8 closes whichever tile is focused. F1 and F2 switch between the Console and Settings views.',
+      'Sessions are a tiled terminal grid, up to four terminals at once arranged as a 2x2 quadrant layout, or as a single split layout — pick either from Settings.',
+      'F2 adds a new session tile; F3 closes whichever tile is focused. F1 and F11 switch between the Session and Settings views.',
     ],
   },
   {

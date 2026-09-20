@@ -2,15 +2,15 @@ import './styles.css';
 import './dos-theme.css';
 import { renderDosChrome, handleDosFKey } from './dos-chrome.js';
 import {
-  renderConsolePanel,
+  renderSessionPanel,
   setTerminalTheme,
   setTerminalOpacity,
-  forceRedrawConsole,
+  forceRedrawSession,
   restoreSessions,
   setConsoleLayoutMode,
   addTerminal,
   closeActiveTile,
-} from './console-panel.js';
+} from './session-panel.js';
 import { renderSettingsPanel } from './settings-panel.js';
 import { renderHelpPanel } from './help-panel.js';
 import { createGraphView } from './graph-view.js';
@@ -39,7 +39,7 @@ async function main() {
     document.documentElement.style.setProperty(OPACITY_CONFIG[key].cssVar, opacity[key]);
   }
 
-  const consolePanelEl = document.getElementById('console-panel');
+  const sessionPanelEl = document.getElementById('session-panel');
   const settingsPanelEl = document.getElementById('settings-panel');
   const helpPanelEl = document.getElementById('help-panel');
   const dosFKeyBarEl = document.getElementById('dos-fkeybar');
@@ -50,7 +50,7 @@ async function main() {
   const backdrop = createGraphView();
   backdrop.attach(graphBackdropEl);
 
-  renderConsolePanel(consolePanelEl, { layoutMode: consoleLayoutMode });
+  renderSessionPanel(sessionPanelEl, { layoutMode: consoleLayoutMode });
   setTerminalOpacity(opacity.terminal);
   setTerminalTheme(theme.terminal, theme.terminalFont);
   restoreSessions();
@@ -79,13 +79,13 @@ async function main() {
     await window.orbit.setSetting('consoleLayoutMode', mode);
   }
 
-  let currentView = 'console';
+  let currentView = 'session';
 
   function onDosAction(action) {
-    if (action === 'newTerminal') {
-      showView('console');
+    if (action === 'addSession') {
+      showView('session');
       addTerminal();
-    } else if (action === 'closeTile' && currentView === 'console') {
+    } else if (action === 'closeTile' && currentView === 'session') {
       closeActiveTile();
     }
   }
@@ -95,7 +95,7 @@ async function main() {
   // Backdrop stays live across console/settings view switches — it's a
   // full-window backdrop now, not tied to either view.
   function showView(view) {
-    consolePanelEl.hidden = view !== 'console';
+    sessionPanelEl.hidden = view !== 'session';
     settingsPanelEl.hidden = view !== 'settings';
     helpPanelEl.hidden = view !== 'help';
     currentView = view;
@@ -110,8 +110,8 @@ async function main() {
       });
     } else if (view === 'help') {
       renderHelpPanel(helpPanelEl);
-    } else if (view === 'console') {
-      forceRedrawConsole();
+    } else if (view === 'session') {
+      forceRedrawSession();
     }
   }
 
@@ -159,7 +159,7 @@ async function main() {
     if (e.key === 'Alt') document.body.classList.remove('graph-interact');
   }, true);
 
-  showView('console');
+  showView('session');
 }
 
 main();

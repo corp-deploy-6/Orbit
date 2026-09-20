@@ -83,7 +83,7 @@ body.graph-interact #app * {
   pointer-events: none !important;
 }
 
-#console-panel {
+#session-panel {
   flex: 1;
   display: flex;
   min-width: 0;
@@ -99,12 +99,12 @@ body.graph-interact #app * {
   pointer-events: none;
 }
 
-#console-panel[hidden],
+#session-panel[hidden],
 #settings-panel[hidden] {
   display: none;
 }
 
-.console-panel-inner {
+.session-panel-inner {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -116,7 +116,7 @@ body.graph-interact #app * {
 }
 
 /* Grid mode is capped at four tiles in at most a 2x2 quadrant (see MAX_TILES,
-   console-panel.js), so the tracks are stated per tile count instead of
+   session-panel.js), so the tracks are stated per tile count instead of
    auto-fit: every tile stretches to fill the panel, nothing scrolls, and the
    odd third tile spans the bottom row rather than leaving a hole. */
 .tile-grid {

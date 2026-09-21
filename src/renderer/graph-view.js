@@ -31,6 +31,10 @@ const LIT_LINK_WIDTH = 3.5;
 // brighten every unlit edge. A lit edge instead gets its opacity set directly
 // on its own material object (see setLinkLit), same trick as the emissive set.
 const LIT_LINK_OPACITY = 0.95;
+// See pulseTick: how many extra ticks to keep forcing linkColor/linkWidth
+// reapplication after a link pulse expires, since the library doesn't
+// reliably revert the link's mesh on the expiry tick itself.
+const LINK_CLEANUP_GRACE_TICKS = 5;
 
 // A travelling dot is emitted along every lit edge — the signal actually moves
 // from parent to child, which reads at a glance where a colour fade on a small
@@ -136,6 +140,7 @@ export function createGraphView() {
   const pulses = new Map(); // node -> deadline (ms)
   const linkPulses = new Map(); // link -> deadline (ms)
   let pulseTimerId = null;
+  let linkCleanupTicks = 0; // see pulseTick
 
   // Per-session last touched node, so a `touch` step can light the real edge
   // to the previous one. Query steps (graft/Grep/Glob results) never set or
@@ -200,6 +205,7 @@ export function createGraphView() {
     if (!material?.emissive) return;
     material.emissive.set('#000000');
     material.opacity = LINK_OPACITY;
+    material.color?.set(linkColorValue());
   }
 
   // Lights an edge: the colour/width pulse plus a dot that travels it. The
@@ -233,17 +239,27 @@ export function createGraphView() {
     // link pulse was live, and run once more on the tick a link's pulse
     // expires so it fades back to its base colour/width.
     const hadLinks = linkPulses.size > 0;
+    let linkExpired = false;
     for (const [link, until] of linkPulses) {
       if (until <= now) {
         linkPulses.delete(link);
         clearLinkLit(link);
+        linkExpired = true;
       } else {
         setLinkLit(link, linkColorFor(link));
       }
     }
     graphInstance?.nodeColor(nodeColorFor).nodeVal(nodeValFor);
-    if (hadLinks) graphInstance?.linkColor(linkColorFor).linkWidth(linkWidthFor);
-    if (!pulses.size && !linkPulses.size) stopPulseTick();
+    // three-forcegraph's own digest doesn't reliably swap a link's mesh back
+    // to a thin unlit line on the exact tick its width returns to 0 (observed:
+    // it can sit as a bright lambert-lit cylinder for several seconds, only
+    // self-healing once a *later*, unrelated link pulse forces another
+    // reapply) — so once a link expires, keep forcing the reapply for a few
+    // extra ticks rather than trusting the very next one to land.
+    if (linkExpired) linkCleanupTicks = LINK_CLEANUP_GRACE_TICKS;
+    else if (linkCleanupTicks > 0) linkCleanupTicks--;
+    if (hadLinks || linkCleanupTicks > 0) graphInstance?.linkColor(linkColorFor).linkWidth(linkWidthFor);
+    if (!pulses.size && !linkPulses.size && linkCleanupTicks <= 0) stopPulseTick();
   }
 
   function startPulseTick() {
@@ -383,6 +399,7 @@ export function createGraphView() {
     stopIdleTimer();
     pulses.clear();
     linkPulses.clear();
+    linkCleanupTicks = 0;
     stepQueue = [];
     lastNodeBySession.clear();
     nodesByPath = new Map();
@@ -507,7 +524,13 @@ export function createGraphView() {
       stopStepTimer();
       stopIdleTimer();
       pulses.clear();
+      // Animation is about to freeze, so nothing will render this loop's
+      // clearLinkLit/digest again to fade a live pulse out — reset any lit
+      // link's material directly now, or it stays bright for the whole pause.
+      for (const link of linkPulses.keys()) clearLinkLit(link);
       linkPulses.clear();
+      linkCleanupTicks = 0;
+      graphInstance?.linkColor(linkColorFor).linkWidth(linkWidthFor);
       stepQueue = [];
       graphInstance?.pauseAnimation();
     },

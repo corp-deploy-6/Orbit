@@ -26,7 +26,11 @@ const PULSE_TICK_MS = 66;
 // --accent are both #FFFF55, so a lit file node faded to exactly its own
 // colour and the whole pulse was invisible.
 const PULSE_COLOR_VAR = '--graph-pulse';
-const LIT_LINK_WIDTH = 1.8;
+const LIT_LINK_WIDTH = 3.5;
+// linkOpacity (0.35, below) is a global accessor — bumping it would also
+// brighten every unlit edge. A lit edge instead gets its opacity set directly
+// on its own material object (see setLinkLit), same trick as the emissive set.
+const LIT_LINK_OPACITY = 0.95;
 
 // A travelling dot is emitted along every lit edge — the signal actually moves
 // from parent to child, which reads at a glance where a colour fade on a small
@@ -179,6 +183,25 @@ export function createGraphView() {
     if (emissive) emissive.set(color);
   }
 
+  // Same trick as setEmissive, plus the opacity bump that only a lit link's
+  // own material can carry (linkOpacity is a global accessor). Materials are
+  // cached per colour string by the library and rebuilt every digest, so this
+  // mutates whatever instance is currently assigned to the link's mesh —
+  // matches setEmissive's one-tick lag, which is already how node pulses work.
+  function setLinkLit(link, color) {
+    const material = link.__lineObj?.material;
+    if (!material?.emissive) return; // unlit links are a Line with no emissive
+    material.emissive.set(color);
+    material.opacity = LIT_LINK_OPACITY;
+  }
+
+  function clearLinkLit(link) {
+    const material = link.__lineObj?.material;
+    if (!material?.emissive) return;
+    material.emissive.set('#000000');
+    material.opacity = LINK_OPACITY;
+  }
+
   // Lights an edge: the colour/width pulse plus a dot that travels it. The
   // particle animates itself frame by frame once emitted, independently of
   // the pulse tick's accessor re-application.
@@ -211,7 +234,12 @@ export function createGraphView() {
     // expires so it fades back to its base colour/width.
     const hadLinks = linkPulses.size > 0;
     for (const [link, until] of linkPulses) {
-      if (until <= now) linkPulses.delete(link);
+      if (until <= now) {
+        linkPulses.delete(link);
+        clearLinkLit(link);
+      } else {
+        setLinkLit(link, linkColorFor(link));
+      }
     }
     graphInstance?.nodeColor(nodeColorFor).nodeVal(nodeValFor);
     if (hadLinks) graphInstance?.linkColor(linkColorFor).linkWidth(linkWidthFor);
